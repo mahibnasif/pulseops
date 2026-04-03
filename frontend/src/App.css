@@ -1,0 +1,32 @@
+.foundation {
+  width: min(720px, calc(100% - 48px));
+  margin: auto;
+  padding: 96px 0;
+}
+
+.eyebrow {
+  margin: 0 0 16px;
+  color: #2563eb;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.summary {
+  max-width: 640px;
+  margin: 24px auto 0;
+  color: #475569;
+  font-size: 1.125rem;
+}
+
+.status {
+  display: inline-flex;
+  margin: 40px 0 0;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  color: #334155;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
