@@ -1,0 +1,19 @@
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# IDE and editor state
+.idea/
+.vscode/
+*.iml
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Local tooling output
+*.log
+coverage/
+playwright-report/
+test-results/
