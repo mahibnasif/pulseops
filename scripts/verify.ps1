@@ -41,6 +41,18 @@ finally {
 
 Push-Location -LiteralPath $projectRoot
 try {
+    if ([string]::IsNullOrWhiteSpace($env:JWT_SECRET)) {
+        $verificationKey = New-Object byte[] 32
+        $randomNumberGenerator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+        try {
+            $randomNumberGenerator.GetBytes($verificationKey)
+        }
+        finally {
+            $randomNumberGenerator.Dispose()
+        }
+        $env:JWT_SECRET = [Convert]::ToBase64String($verificationKey)
+    }
+
     docker compose config --quiet
     if ($LASTEXITCODE -ne 0) {
         throw "Docker Compose validation failed with exit code $LASTEXITCODE."
@@ -50,4 +62,4 @@ finally {
     Pop-Location
 }
 
-Write-Host 'PulseOps foundation verification passed.' -ForegroundColor Green
+Write-Host 'PulseOps verification passed.' -ForegroundColor Green
