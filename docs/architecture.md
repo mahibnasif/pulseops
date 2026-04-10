@@ -35,6 +35,14 @@ scheduler claims due service rows in bounded batches, performs checks outside
 long database transactions, and commits results through state-transition
 services.
 
+## Authentication flow
+
+The SPA sends credentials only to the authentication API. The backend verifies
+BCrypt hashes and returns a signed, short-lived access JWT while setting an
+opaque refresh token in an HttpOnly cookie. PostgreSQL stores only the refresh
+token hash. Refresh requests rotate the opaque token; bearer JWTs authorize
+protected API requests without server-side access-token sessions.
+
 ## Reliability boundaries
 
 - Requests use correlation IDs.

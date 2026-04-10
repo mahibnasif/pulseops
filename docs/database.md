@@ -10,6 +10,7 @@ PostgreSQL is the source of truth. Flyway migrations under
 
 ```mermaid
 erDiagram
+    USERS ||--o{ REFRESH_TOKENS : owns
     USERS ||--o{ ORGANIZATION_MEMBERSHIPS : joins
     ORGANIZATIONS ||--o{ ORGANIZATION_MEMBERSHIPS : contains
     ORGANIZATIONS ||--o{ MONITORED_SERVICES : owns
@@ -20,8 +21,13 @@ erDiagram
     USERS ||--o{ NOTIFICATIONS : receives
 ```
 
-The detailed columns are introduced with their owning feature. UUIDs are
-application-generated. Every tenant-owned table carries an organization
+Phase 2 introduces `users` and `refresh_tokens`. User emails are normalized and
+unique. Passwords are stored only as BCrypt hashes. Refresh-token values are
+represented only by unique SHA-256 hashes, with family IDs supporting rotation,
+revocation, and replay response.
+
+The remaining detailed columns are introduced with their owning feature. UUIDs
+are application-generated. Every tenant-owned table carries an organization
 reference where doing so strengthens authorization and integrity.
 
 ## Migration rules
@@ -33,5 +39,5 @@ reference where doing so strengthens authorization and integrity.
 - Test migrations against PostgreSQL through Testcontainers.
 - Name migrations `V<version>__<description>.sql`.
 
-The foundation migration establishes a real Flyway baseline without creating
-feature tables ahead of their domain implementation.
+`V1` establishes the Flyway baseline. `V2` creates the authentication tables,
+constraints, foreign key, and refresh-token lookup indexes.

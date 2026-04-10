@@ -6,14 +6,30 @@ Every organization-scoped command and query verifies active membership.
 Role checks run in backend application services. Related IDs—such as service,
 incident, and assignee—must belong to the same organization.
 
-## Authentication direction
+## Authentication
 
-Phase 2 will use BCrypt password hashes, short-lived JWT access tokens, hashed
-rotating refresh tokens, revocation, safe authentication errors, and rate
-limits. Secrets come from environment or managed secret stores.
+Phase 2 uses BCrypt password hashes and exchanges credentials for 15-minute JWT
+access tokens. JWT verification requires the configured issuer, audience, and
+HS256 signature. The Base64 signing key must decode to at least 256 bits and
+comes from environment or a managed secret store.
 
-The foundation security chain permits health and API documentation only and
-denies all other routes. It contains no temporary default user.
+Refresh tokens are 256-bit opaque random values. Only their SHA-256 hashes are
+stored. Every refresh rotates the token under a stable family ID. Replaying a
+revoked token invalidates all active tokens in that family. Logout revokes the
+presented refresh token.
+
+The browser keeps access tokens in memory. Refresh values use HttpOnly,
+SameSite=Strict cookies scoped to `/api/v1/auth`; production also requires the
+Secure flag. CORS allows only configured origins and credentials. The API is
+stateless and has no default user.
+
+CSRF protection is disabled for bearer-token API calls. The only credential
+automatically attached by browsers is the Strict refresh cookie, scoped to the
+authentication endpoints. Phase 9 will add explicit authentication rate limits
+and repeat the CSRF/CORS threat-model review before production deployment.
+
+Login failures use the same response for an unknown email and a wrong password.
+Password hashes never cross the DTO boundary.
 
 ## SSRF policy
 

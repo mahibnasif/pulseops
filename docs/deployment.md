@@ -23,4 +23,6 @@ restricted and observed because monitoring requires outbound HTTP/HTTPS.
 
 Production needs TLS, automated Flyway execution, managed secrets, RDS backups,
 multi-AZ where budget permits, task autoscaling, log retention, and rollback
-procedures. Deployment must never proceed after failed tests.
+procedures. `JWT_SECRET` must come from AWS Secrets Manager or an equivalent
+managed store, and `REFRESH_COOKIE_SECURE` must be enabled. Deployment must
+never proceed after failed tests.

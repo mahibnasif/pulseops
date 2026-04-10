@@ -4,9 +4,9 @@ PulseOps is a cloud-based service monitoring and incident-management platform
 that checks application health, detects confirmed outages, alerts engineering
 teams, and tracks incidents through resolution.
 
-> Project status: Phase 1 (Project Foundation) is implemented. Authentication,
-> organizations, monitoring, incidents, and analytics are planned milestones and
-> are not represented as completed features.
+> Project status: Phase 2 (Authentication) is implemented. Organizations,
+> monitoring, incidents, and analytics remain planned milestones and are not
+> represented as completed features.
 
 ## Architecture
 
@@ -36,7 +36,7 @@ runtime flows.
 - Infrastructure: Docker, Docker Compose, GitHub Actions
 - Production target: Vercel, AWS ECS Fargate, and AWS RDS PostgreSQL
 
-## Foundation capabilities
+## Implemented capabilities
 
 - Java and Node applications with reproducible dependency wrappers/lockfiles
 - PostgreSQL configuration through environment variables
@@ -47,13 +47,20 @@ runtime flows.
 - Health, readiness, and liveness endpoints
 - Multi-stage, non-root application containers
 - One-command local stack with health-gated startup
+- User registration and login with normalized email addresses
+- BCrypt password hashes and account status enforcement
+- Short-lived JWT access tokens with issuer and audience validation
+- Hashed, rotating refresh-token families with replay detection and revocation
+- HttpOnly, SameSite refresh cookies and in-memory frontend access tokens
+- Protected React routes, session restoration, and logout
+- Stable API error envelopes with safe authentication messages
 
 ## Planned MVP
 
-The MVP will add registration and JWT sessions, organizations and roles,
-HTTP/HTTPS service monitoring, threshold-based outage detection, incident
-workflows, in-app notifications, server-sent events, and basic reliability
-analytics. See [docs/api.md](docs/api.md) and
+The remaining MVP will add organizations and roles, HTTP/HTTPS service
+monitoring, threshold-based outage detection, incident workflows, in-app
+notifications, server-sent events, and basic reliability analytics. See
+[docs/api.md](docs/api.md) and
 [docs/monitoring-engine.md](docs/monitoring-engine.md).
 
 ## Prerequisites
@@ -71,7 +78,7 @@ Maven does not need to be installed globally. The repository includes
 Run from `D:\Code\vibing\pulseops` in Windows PowerShell:
 
 ```powershell
-Copy-Item -LiteralPath '.env.example' -Destination '.env'
+.\scripts\setup.ps1
 docker compose up --build
 ```
 
@@ -107,10 +114,17 @@ docker compose down --volumes
 | `DATABASE_URL` | local JDBC URL | Direct backend JDBC URL |
 | `DATABASE_USERNAME` | `pulseops` | Direct backend database user |
 | `DATABASE_PASSWORD` | `pulseops` | Direct backend database password |
+| `JWT_SECRET` | none; required | Base64-encoded signing key of at least 256 bits |
+| `JWT_ISSUER` | `pulseops` | Required JWT issuer |
+| `JWT_AUDIENCE` | `pulseops-web` | Required JWT audience |
+| `JWT_ACCESS_TOKEN_TTL` | `15m` | Access-token lifetime |
+| `JWT_REFRESH_TOKEN_TTL` | `30d` | Refresh-session lifetime |
+| `REFRESH_COOKIE_SECURE` | `false` in Compose | Require HTTPS for refresh cookie |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Credentialed browser origins |
 
-JWT, CORS, and email-provider variables will be introduced with the features
-that consume them. Production secrets must come from a managed secret store,
-never committed files.
+The setup script creates an ignored `.env` and generates a 256-bit JWT key.
+Production secrets must come from a managed secret store, never committed files.
+Production must set `REFRESH_COOKIE_SECURE=true`.
 
 ## Run tests
 
@@ -131,7 +145,7 @@ npm.cmd test
 npm.cmd run build
 ```
 
-Run the combined foundation verification:
+Run the combined verification:
 
 ```powershell
 Set-Location -LiteralPath 'D:\Code\vibing\pulseops'
@@ -141,15 +155,15 @@ Set-Location -LiteralPath 'D:\Code\vibing\pulseops'
 ## Database design
 
 Flyway owns all schema changes. Hibernate validates mappings but never changes
-the schema. UUID domain tables will be introduced alongside their features.
-See [docs/database.md](docs/database.md).
+the schema. Phase 2 adds UUID-backed `users` and `refresh_tokens` tables. See
+[docs/database.md](docs/database.md).
 
 ## Security
 
-The foundation exposes only health and API-documentation endpoints. All future
-application routes are denied until Phase 2 introduces JWT authentication.
-The monitoring client will require explicit SSRF defenses before accepting
-user-controlled URLs. See [docs/security.md](docs/security.md).
+Registration, login, refresh, and logout are public API operations. All other
+application routes require a valid bearer JWT. The monitoring client will
+require explicit SSRF defenses before accepting user-controlled URLs. See
+[docs/security.md](docs/security.md).
 
 ## Deployment
 
@@ -165,7 +179,9 @@ progress.
 
 ## Known limitations
 
-- The foundation does not yet expose product APIs.
+- Organization-scoped product APIs are not implemented yet.
+- Password reset, email verification delivery, and authentication rate limiting
+  are scheduled for later security/integration work.
 - Default Compose credentials are for local development only.
 - Email and live events are not implemented.
 - Uptime metrics will be sampled estimates, not continuous SLA measurements.
