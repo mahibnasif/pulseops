@@ -4,8 +4,8 @@ PulseOps is a cloud-based service monitoring and incident-management platform
 that checks application health, detects confirmed outages, alerts engineering
 teams, and tracks incidents through resolution.
 
-> Project status: Phase 2 (Authentication) is implemented. Organizations,
-> monitoring, incidents, and analytics remain planned milestones and are not
+> Project status: Phase 3 (Organizations) is implemented. Service monitoring,
+> incidents, notifications, and analytics remain planned milestones and are not
 > represented as completed features.
 
 ## Architecture
@@ -54,12 +54,18 @@ runtime flows.
 - HttpOnly, SameSite refresh cookies and in-memory frontend access tokens
 - Protected React routes, session restoration, and logout
 - Stable API error envelopes with safe authentication messages
+- Organization creation, discovery, settings, and persistent workspace switching
+- Active memberships with `ADMIN`, `ENGINEER`, and `VIEWER` roles
+- Backend-enforced tenant isolation and role authorization
+- Hashed organization invitation tokens with email-bound acceptance
+- Member role changes, removal, leave, and ownership-transfer workflows
+- Responsive organization onboarding and team administration UI
 
 ## Planned MVP
 
-The remaining MVP will add organizations and roles, HTTP/HTTPS service
-monitoring, threshold-based outage detection, incident workflows, in-app
-notifications, server-sent events, and basic reliability analytics. See
+The remaining MVP will add HTTP/HTTPS service monitoring, threshold-based
+outage detection, incident workflows, in-app notifications, server-sent events,
+and basic reliability analytics. See
 [docs/api.md](docs/api.md) and
 [docs/monitoring-engine.md](docs/monitoring-engine.md).
 
@@ -155,14 +161,17 @@ Set-Location -LiteralPath 'D:\Code\vibing\pulseops'
 ## Database design
 
 Flyway owns all schema changes. Hibernate validates mappings but never changes
-the schema. Phase 2 adds UUID-backed `users` and `refresh_tokens` tables. See
+the schema. Phase 3 adds UUID-backed organization, membership, and invitation
+tables to the authentication foundation. See
 [docs/database.md](docs/database.md).
 
 ## Security
 
 Registration, login, refresh, and logout are public API operations. All other
-application routes require a valid bearer JWT. The monitoring client will
-require explicit SSRF defenses before accepting user-controlled URLs. See
+application routes require a valid bearer JWT. Organization-scoped operations
+also require an active membership and, where applicable, the `ADMIN` role. The
+monitoring client will require explicit SSRF defenses before accepting
+user-controlled URLs. See
 [docs/security.md](docs/security.md).
 
 ## Deployment
@@ -179,7 +188,8 @@ progress.
 
 ## Known limitations
 
-- Organization-scoped product APIs are not implemented yet.
+- Invitation email delivery is not implemented; matching registered users see
+  pending invitations in the application.
 - Password reset, email verification delivery, and authentication rate limiting
   are scheduled for later security/integration work.
 - Default Compose credentials are for local development only.

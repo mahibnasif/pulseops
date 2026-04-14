@@ -43,6 +43,20 @@ opaque refresh token in an HttpOnly cookie. PostgreSQL stores only the refresh
 token hash. Refresh requests rotate the opaque token; bearer JWTs authorize
 protected API requests without server-side access-token sessions.
 
+## Organization boundary
+
+An organization is the tenant root. Creation atomically writes the organization
+and an `ADMIN` membership for its owner. Every organization query first resolves
+an active membership from the JWT subject; administrative commands then verify
+the membership role. Ownership is an additional invariant for transfer and
+leave operations, not a hidden fourth role.
+
+The SPA loads all active memberships after authentication and stores only the
+selected organization ID in local storage. Organization details and roles are
+always refreshed from the API. Future services, incidents, analytics, audit
+records, and live-event subscriptions must accept the selected organization as
+context but independently enforce the same backend membership boundary.
+
 ## Reliability boundaries
 
 - Requests use correlation IDs.

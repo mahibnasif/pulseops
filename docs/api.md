@@ -51,3 +51,41 @@ returned to clients.
 
 Authorization performs membership and role checks before resource lookup
 results are exposed. A UUID is an identifier, not an authorization mechanism.
+
+Organization and membership discovery collections are intentionally
+unpaginated during Phase 3 because they are bounded team/workspace lists.
+Monitoring, incident, notification, analytics, and audit collections will be
+paginated when introduced.
+
+## Organization endpoints
+
+All endpoints below require a bearer JWT.
+
+| Method | Path | Required access | Purpose |
+|---|---|---|---|
+| `GET` | `/api/v1/organizations` | Authenticated user | List active organization memberships |
+| `POST` | `/api/v1/organizations` | Authenticated user | Create an organization and become its owner/admin |
+| `GET` | `/api/v1/organizations/{id}` | Active member | View organization settings |
+| `PATCH` | `/api/v1/organizations/{id}` | `ADMIN` | Update name, slug, or description |
+| `GET` | `/api/v1/organizations/{id}/members` | Active member | List active members |
+| `PATCH` | `/api/v1/organizations/{id}/members/{userId}` | `ADMIN` | Change a non-owner member role |
+| `DELETE` | `/api/v1/organizations/{id}/members/{userId}` | `ADMIN` | Remove a non-owner member |
+| `POST` | `/api/v1/organizations/{id}/leave` | Active non-owner member | Leave an organization |
+| `POST` | `/api/v1/organizations/{id}/transfer-ownership` | Owner | Transfer ownership to an active member |
+| `GET` | `/api/v1/organizations/{id}/invitations` | `ADMIN` | List organization invitations |
+| `POST` | `/api/v1/organizations/{id}/invitations` | `ADMIN` | Create an email-bound invitation |
+| `DELETE` | `/api/v1/organizations/{id}/invitations/{invitationId}` | `ADMIN` | Cancel an unaccepted invitation |
+| `GET` | `/api/v1/invitations` | Authenticated user | List unexpired invitations matching the user's email |
+| `POST` | `/api/v1/invitations/{invitationId}/accept` | Invited user | Accept an in-app invitation |
+| `POST` | `/api/v1/invitations/accept` | Invited user + token | Accept an invitation link token |
+
+Creation returns the raw invitation token once so a future delivery adapter can
+construct an acceptance link. Lists never expose the token or its hash.
+PostgreSQL stores only the SHA-256 hash. In the current local product, a
+registered user can accept a pending invitation from the dashboard without
+email delivery.
+
+Non-members receive the same `ORGANIZATION_NOT_FOUND` response whether the
+organization does not exist or is outside their tenant boundary. This prevents
+organization identifier probing. Authenticated members without sufficient
+permissions receive `INSUFFICIENT_ORGANIZATION_ROLE`.

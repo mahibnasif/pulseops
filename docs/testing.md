@@ -26,6 +26,14 @@ logout, and duplicate registration. Frontend tests cover public routing,
 protected-route redirects, login, authenticated rendering, and registration
 confirmation validation.
 
+Phase 3 backend integration tests cover owner membership creation, slug
+uniqueness, cross-tenant denial, viewer authorization, invitation hashing and
+email binding, role changes, removal, leave rules, and ownership transfer.
+Frontend tests cover empty-state creation, persistent organization switching,
+pending invitation acceptance, and read-only viewer settings. The integration
+base owns one PostgreSQL Testcontainer for the full JVM so Spring's cached
+application context never points at a container stopped between test classes.
+
 Coverage is used to find untested risk, not as a vanity target. Security and
 concurrency paths require explicit tests even if aggregate line coverage is
 already high.

@@ -6,6 +6,21 @@ Every organization-scoped command and query verifies active membership.
 Role checks run in backend application services. Related IDs—such as service,
 incident, and assignee—must belong to the same organization.
 
+Non-members receive a tenant-safe not-found response instead of confirmation
+that an organization exists. `ADMIN` is required for organization updates,
+invitations, role changes, removal, and invitation inspection. Only the current
+owner can transfer ownership. Owners cannot leave, be removed, or be demoted
+until ownership has moved to another active member.
+
+Organization invitations contain 256-bit opaque random tokens. Only SHA-256
+hashes are persisted. Acceptance requires a valid authenticated account whose
+normalized email matches the invitation, even when the raw token is presented.
+The invitation and membership rows are locked during acceptance to prevent
+duplicate/concurrent joins. Invitation list DTOs never expose tokens or hashes.
+Raw tokens are returned only in the creation response for a future email
+delivery adapter; the current in-app acceptance path uses the invitation ID
+after matching the authenticated email.
+
 ## Authentication
 
 Phase 2 uses BCrypt password hashes and exchanges credentials for 15-minute JWT
