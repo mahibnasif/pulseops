@@ -12,6 +12,10 @@ import jakarta.servlet.http.Cookie;
 
 import com.jayway.jsonpath.JsonPath;
 import com.pulseops.support.AbstractIntegrationTest;
+import com.pulseops.monitoredservice.MonitoredServiceRepository;
+import com.pulseops.invitation.OrganizationInvitationRepository;
+import com.pulseops.membership.OrganizationMembershipRepository;
+import com.pulseops.organization.OrganizationRepository;
 import com.pulseops.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,8 +51,24 @@ class AuthApiIntegrationTests extends AbstractIntegrationTest {
 	@Autowired
 	private PasswordEncoder passwordEncoder;
 
+	@Autowired
+	private MonitoredServiceRepository monitoredServiceRepository;
+
+	@Autowired
+	private OrganizationInvitationRepository invitationRepository;
+
+	@Autowired
+	private OrganizationMembershipRepository membershipRepository;
+
+	@Autowired
+	private OrganizationRepository organizationRepository;
+
 	@BeforeEach
 	void cleanDatabase() {
+		monitoredServiceRepository.deleteAll();
+		invitationRepository.deleteAll();
+		membershipRepository.deleteAll();
+		organizationRepository.deleteAll();
 		refreshTokenRepository.deleteAll();
 		userRepository.deleteAll();
 	}

@@ -47,6 +47,17 @@ public class OrganizationAccessService {
 		return membership;
 	}
 
+	public OrganizationMembership requireEngineer(UUID organizationId, UUID userId) {
+		var membership = requireMember(organizationId, userId);
+		if (membership.getRole() == MembershipRole.VIEWER) {
+			throw new ApiException(
+					HttpStatus.FORBIDDEN,
+					"INSUFFICIENT_ORGANIZATION_ROLE",
+					"Engineer or administrator access is required for this organization.");
+		}
+		return membership;
+	}
+
 	private ApiException organizationNotFound() {
 		return new ApiException(
 				HttpStatus.NOT_FOUND,

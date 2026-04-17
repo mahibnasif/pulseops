@@ -1,0 +1,13 @@
+package com.pulseops.monitoredservice;
+
+public enum CheckErrorType {
+	TIMEOUT,
+	CONNECTION_REFUSED,
+	DNS_FAILURE,
+	SSL_ERROR,
+	UNEXPECTED_STATUS,
+	CONTENT_MISMATCH,
+	JSON_VALIDATION_FAILURE,
+	NETWORK_ERROR,
+	UNKNOWN_ERROR
+}

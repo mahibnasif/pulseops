@@ -16,6 +16,7 @@ import com.pulseops.invitation.OrganizationInvitationRepository;
 import com.pulseops.membership.MembershipRole;
 import com.pulseops.membership.MembershipStatus;
 import com.pulseops.membership.OrganizationMembershipRepository;
+import com.pulseops.monitoredservice.MonitoredServiceRepository;
 import com.pulseops.support.AbstractIntegrationTest;
 import com.pulseops.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,8 +49,12 @@ class OrganizationApiIntegrationTests extends AbstractIntegrationTest {
 	@Autowired
 	private UserRepository userRepository;
 
+	@Autowired
+	private MonitoredServiceRepository monitoredServiceRepository;
+
 	@BeforeEach
 	void cleanDatabase() {
+		monitoredServiceRepository.deleteAll();
 		invitationRepository.deleteAll();
 		membershipRepository.deleteAll();
 		organizationRepository.deleteAll();
