@@ -7,6 +7,11 @@ import App from './App'
 import { AuthProvider } from './features/auth/AuthProvider'
 import type { AuthSession } from './features/auth/types'
 import type { Organization } from './features/organizations/types'
+import type {
+  ManualCheckResult,
+  MonitoredService,
+  ServicePage,
+} from './features/services/types'
 
 const authenticatedSession: AuthSession = {
   accessToken: 'test-access-token',
@@ -40,6 +45,43 @@ const productOrganization: Organization = {
   slug: 'product-team',
   description: 'Customer product engineering',
   currentUserRole: 'ENGINEER',
+}
+
+const publicApiService: MonitoredService = {
+  id: '203ec28e-a852-4931-b6ac-41575262ecbe',
+  organizationId: platformOrganization.id,
+  name: 'Public API',
+  description: 'Customer-facing API health endpoint',
+  serviceType: 'HTTPS',
+  url: 'https://api.example.com/health',
+  httpMethod: 'GET',
+  expectedStatusCode: 200,
+  expectedResponseText: 'healthy',
+  expectedJsonPath: null,
+  expectedJsonValue: null,
+  timeoutMilliseconds: 5000,
+  checkIntervalSeconds: 60,
+  failureThreshold: 3,
+  recoveryThreshold: 2,
+  degradedLatencyThresholdMilliseconds: 1000,
+  status: 'UNKNOWN',
+  active: true,
+  createdBy: authenticatedSession.user.id,
+  createdAt: '2026-07-30T00:00:00Z',
+  updatedAt: '2026-07-30T00:00:00Z',
+  lastCheckedAt: null,
+  lastSuccessfulCheckAt: null,
+  lastFailureAt: null,
+}
+
+const servicePage: ServicePage = {
+  content: [publicApiService],
+  page: 0,
+  size: 50,
+  totalElements: 1,
+  totalPages: 1,
+  first: true,
+  last: true,
 }
 
 afterEach(() => {
@@ -341,5 +383,161 @@ describe('PulseOps authentication routes', () => {
 
     expect(screen.getByText(/passwords must match/i)).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('PulseOps service management', () => {
+  it('shows the organization service inventory to an administrator', async () => {
+    const fetchMock = vi.fn(
+      async (input: string | URL | Request) => {
+        const path = String(input)
+        if (path === '/api/v1/organizations') {
+          return jsonResponse([platformOrganization])
+        }
+        if (path === '/api/v1/invitations') {
+          return jsonResponse([])
+        }
+        if (
+          path ===
+          `/api/v1/organizations/${platformOrganization.id}/services?size=50`
+        ) {
+          return jsonResponse(servicePage)
+        }
+        throw new Error(`Unexpected request: ${path}`)
+      },
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    renderApp('/services', authenticatedSession)
+
+    expect(
+      await screen.findByRole('heading', { name: /monitored services/i }),
+    ).toBeInTheDocument()
+    expect(
+      await screen.findByRole('link', { name: /add service/i }),
+    ).toBeVisible()
+    expect(
+      await screen.findByRole('link', { name: /public api/i }),
+    ).toHaveAttribute(
+      'href',
+      `/services/${publicApiService.id}`,
+    )
+  })
+
+  it('creates an HTTPS service and opens its details', async () => {
+    const createdService = {
+      ...publicApiService,
+      name: 'Checkout API',
+      url: 'https://checkout.example.com/health',
+    }
+    const fetchMock = vi.fn(
+      async (input: string | URL | Request, options?: RequestInit) => {
+        const path = String(input)
+        if (path === '/api/v1/organizations') {
+          return jsonResponse([platformOrganization])
+        }
+        if (path === '/api/v1/invitations') {
+          return jsonResponse([])
+        }
+        if (
+          path ===
+            `/api/v1/organizations/${platformOrganization.id}/services` &&
+          options?.method === 'POST'
+        ) {
+          return jsonResponse(createdService, 201)
+        }
+        if (
+          path ===
+          `/api/v1/organizations/${platformOrganization.id}/services/${publicApiService.id}`
+        ) {
+          return jsonResponse(createdService)
+        }
+        throw new Error(`Unexpected request: ${path}`)
+      },
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    renderApp('/services/new', authenticatedSession)
+
+    await screen.findByRole('heading', { name: /register an endpoint/i })
+    await user.type(screen.getByLabelText(/service name/i), 'Checkout API')
+    await user.clear(screen.getByLabelText(/^url$/i))
+    await user.type(
+      screen.getByLabelText(/^url$/i),
+      'https://checkout.example.com/health',
+    )
+    await user.click(screen.getByRole('button', { name: /create service/i }))
+
+    expect(
+      await screen.findByRole('heading', { name: /checkout api/i }),
+    ).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/v1/organizations/${platformOrganization.id}/services`,
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-access-token',
+        }),
+      }),
+    )
+  })
+
+  it('allows an engineer to run a manual check without management actions', async () => {
+    const engineerOrganization = {
+      ...platformOrganization,
+      currentUserRole: 'ENGINEER' as const,
+    }
+    const manualResult: ManualCheckResult = {
+      checkedAt: '2026-07-30T01:00:00Z',
+      success: true,
+      degraded: false,
+      statusCode: 200,
+      responseTimeMilliseconds: 84,
+      errorType: null,
+      errorMessage: null,
+      responseValidationPassed: true,
+      responseExcerpt: 'healthy',
+      affectsServiceStatus: false,
+    }
+    const fetchMock = vi.fn(
+      async (input: string | URL | Request, options?: RequestInit) => {
+        const path = String(input)
+        if (path === '/api/v1/organizations') {
+          return jsonResponse([engineerOrganization])
+        }
+        if (path === '/api/v1/invitations') {
+          return jsonResponse([])
+        }
+        if (
+          path ===
+          `/api/v1/organizations/${engineerOrganization.id}/services/${publicApiService.id}/check`
+        ) {
+          expect(options?.method).toBe('POST')
+          return jsonResponse(manualResult)
+        }
+        if (
+          path ===
+          `/api/v1/organizations/${engineerOrganization.id}/services/${publicApiService.id}`
+        ) {
+          return jsonResponse(publicApiService)
+        }
+        throw new Error(`Unexpected request: ${path}`)
+      },
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    renderApp(`/services/${publicApiService.id}`, authenticatedSession)
+
+    await screen.findByRole('heading', { name: /public api/i })
+    expect(screen.queryByRole('link', { name: /^edit$/i })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /delete service/i }),
+    ).not.toBeInTheDocument()
+    await user.click(
+      screen.getByRole('button', { name: /run manual check/i }),
+    )
+
+    expect(await screen.findByText(/check passed/i)).toBeInTheDocument()
+    expect(screen.getByText(/84 ms/i)).toBeInTheDocument()
   })
 })

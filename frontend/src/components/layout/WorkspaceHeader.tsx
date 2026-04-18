@@ -29,6 +29,9 @@ export function WorkspaceHeader() {
       <nav className="workspace-nav" aria-label="Workspace navigation">
         <Link to="/dashboard">Overview</Link>
         {organizations.currentOrganization && (
+          <Link to="/services">Services</Link>
+        )}
+        {organizations.currentOrganization && (
           <Link
             to={`/organizations/${organizations.currentOrganization.id}/settings`}
           >
@@ -43,9 +46,10 @@ export function WorkspaceHeader() {
             <select
               aria-label="Organization"
               value={organizations.currentOrganization?.id ?? ''}
-              onChange={(event) =>
+              onChange={(event) => {
                 organizations.selectOrganization(event.target.value)
-              }
+                navigate('/dashboard')
+              }}
             >
               {organizations.organizations.map((organization) => (
                 <option key={organization.id} value={organization.id}>
