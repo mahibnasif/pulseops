@@ -48,21 +48,28 @@ Password hashes never cross the DTO boundary.
 
 ## SSRF policy
 
-Before monitoring is enabled, the HTTP checker must:
+The Phase 4 manual HTTP checker:
 
-- allow only `http` and `https`;
-- reject credentials and unsupported URL schemes;
-- block loopback, link-local, private, multicast, and reserved addresses in
-  production;
-- block cloud metadata endpoints;
-- resolve DNS and validate every result;
-- reconnect only to the validated destination;
-- disable or manually validate redirects with a strict redirect limit;
-- enforce connect/read/overall timeouts;
-- cap response bytes and sanitize stored excerpts.
+- allows only absolute `http` and `https` URLs;
+- rejects credentials, fragments, malformed URLs, and unsupported schemes;
+- resolves DNS and rejects loopback, link-local, private, multicast,
+  documentation, and reserved address ranges by default;
+- disables redirects;
+- applies a finite request timeout;
+- caps response bytes and the returned excerpt; and
+- returns categorized, safe failure messages rather than transport internals.
 
-DNS is revalidated for redirects and future checks. PulseOps must not become an
-internal network scanner.
+`MONITORING_ALLOW_PRIVATE_TARGETS` defaults to `false` in the application.
+Local Docker Compose deliberately defaults it to `true` so the backend
+container can check another development container. Production must keep it
+`false`.
+
+The DNS validation preflight and Java HTTP connection currently resolve
+separately. That leaves a DNS-rebinding time-of-check/time-of-use window. The
+checker must pin the validated address, or validate the connected peer through
+an equivalent transport, before untrusted production targets are enabled.
+Redirect support must likewise revalidate every destination if introduced.
+PulseOps must not become an internal network scanner.
 
 ## Dependency advisory record
 

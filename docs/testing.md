@@ -34,6 +34,15 @@ pending invitation acceptance, and read-only viewer settings. The integration
 base owns one PostgreSQL Testcontainer for the full JVM so Spring's cached
 application context never points at a container stopped between test classes.
 
+Phase 4 backend integration tests cover service CRUD, validation,
+case-insensitive tenant-scoped uniqueness, cross-tenant isolation, role
+authorization, pause/resume/delete lifecycle, list filters, and manual-check
+result semantics. Focused checker tests cover status, text, JSON, latency,
+response caps, private destinations, redirects, and safe network failures.
+Frontend tests cover the service inventory, creation-to-details flow, and
+engineer manual checks without administrator controls. The current gate contains
+17 backend tests and 12 frontend tests.
+
 Coverage is used to find untested risk, not as a vanity target. Security and
 concurrency paths require explicit tests even if aggregate line coverage is
 already high.

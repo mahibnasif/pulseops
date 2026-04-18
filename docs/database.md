@@ -44,9 +44,16 @@ membership is reactivated rather than duplicated. Ownership can point only to a
 user, while the application transaction guarantees the owner also has an
 active `ADMIN` membership.
 
-The remaining detailed columns are introduced with their owning feature. UUIDs
-are application-generated. Every tenant-owned table carries an organization
-reference where doing so strengthens authorization and integrity.
+Phase 4 introduces `monitored_services`. Each row carries its organization,
+creator, normalized active name, HTTP request settings, optional response
+expectations, failure/recovery and latency thresholds, lifecycle state,
+soft-deletion timestamp, and latest check/success/failure timestamps. Database
+checks constrain enum-like values and numeric ranges. A partial unique index
+prevents duplicate active names inside one organization while permitting a
+deleted name to be reused.
+
+UUIDs are application-generated. Every tenant-owned table carries an
+organization reference where doing so strengthens authorization and integrity.
 
 ## Migration rules
 
@@ -59,4 +66,6 @@ reference where doing so strengthens authorization and integrity.
 
 `V1` establishes the Flyway baseline. `V2` creates authentication tables.
 `V3` creates organization, membership, and invitation tables with foreign keys,
-checks, uniqueness guarantees, and tenant lookup indexes.
+checks, uniqueness guarantees, and tenant lookup indexes. `V4` creates monitored
+services with lifecycle, validation, uniqueness, tenant-status, and
+tenant-lifecycle indexes.

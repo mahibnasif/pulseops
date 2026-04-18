@@ -35,6 +35,13 @@ scheduler claims due service rows in bounded batches, performs checks outside
 long database transactions, and commits results through state-transition
 services.
 
+Phase 4 implements the `monitoredservice` module and the immediate HTTP checker.
+Controllers handle organization-scoped DTOs; the application service enforces
+membership, roles, lifecycle, and duplicate-name rules; the repository owns
+tenant-filtered persistence; and the checker performs one bounded request.
+Manual checks update last-check timestamps but do not invoke the future
+threshold state machine.
+
 ## Authentication flow
 
 The SPA sends credentials only to the authentication API. The backend verifies
@@ -53,9 +60,10 @@ leave operations, not a hidden fourth role.
 
 The SPA loads all active memberships after authentication and stores only the
 selected organization ID in local storage. Organization details and roles are
-always refreshed from the API. Future services, incidents, analytics, audit
-records, and live-event subscriptions must accept the selected organization as
-context but independently enforce the same backend membership boundary.
+always refreshed from the API. Service queries accept the selected organization
+as context and independently enforce the same backend membership boundary.
+Future incidents, analytics, audit records, and live-event subscriptions must
+do the same.
 
 ## Reliability boundaries
 

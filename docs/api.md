@@ -53,9 +53,9 @@ Authorization performs membership and role checks before resource lookup
 results are exposed. A UUID is an identifier, not an authorization mechanism.
 
 Organization and membership discovery collections are intentionally
-unpaginated during Phase 3 because they are bounded team/workspace lists.
-Monitoring, incident, notification, analytics, and audit collections will be
-paginated when introduced.
+unpaginated because they are bounded team/workspace lists. Service collections
+are paginated. Incident, notification, analytics, and audit collections will
+be paginated when introduced.
 
 ## Organization endpoints
 
@@ -89,3 +89,31 @@ Non-members receive the same `ORGANIZATION_NOT_FOUND` response whether the
 organization does not exist or is outside their tenant boundary. This prevents
 organization identifier probing. Authenticated members without sufficient
 permissions receive `INSUFFICIENT_ORGANIZATION_ROLE`.
+
+## Monitored service endpoints
+
+All paths are organization scoped. Any active member can view services.
+Administrators manage configuration and lifecycle. Engineers and
+administrators can run manual checks; viewers cannot.
+
+| Method | Path | Required access | Purpose |
+|---|---|---|---|
+| `GET` | `/api/v1/organizations/{id}/services` | Active member | List, filter, search, sort, and paginate services |
+| `POST` | `/api/v1/organizations/{id}/services` | `ADMIN` | Create an HTTP/HTTPS service |
+| `GET` | `/api/v1/organizations/{id}/services/{serviceId}` | Active member | View one active service |
+| `PATCH` | `/api/v1/organizations/{id}/services/{serviceId}` | `ADMIN` | Update service configuration |
+| `DELETE` | `/api/v1/organizations/{id}/services/{serviceId}` | `ADMIN` | Soft-delete a service |
+| `POST` | `/api/v1/organizations/{id}/services/{serviceId}/pause` | `ADMIN` | Pause scheduled monitoring |
+| `POST` | `/api/v1/organizations/{id}/services/{serviceId}/resume` | `ADMIN` | Resume with `UNKNOWN` status |
+| `POST` | `/api/v1/organizations/{id}/services/{serviceId}/check` | `ADMIN` or `ENGINEER` | Run an immediate bounded check |
+
+List query parameters include `search`, `status`, `active`, `page`, `size`,
+`sort`, and `direction`. Active service names are unique within an
+organization, case-insensitively.
+
+Phase 4 accepts absolute HTTP/HTTPS URLs and `GET` or `HEAD`. Optional response
+expectations support text containment or a paired simple JSON path/value such
+as `$.status = healthy`. Manual-check responses report success, degradation,
+HTTP status, elapsed time, validation outcome, a bounded excerpt, and safe
+failure details. They explicitly return `affectsServiceStatus=false`; scheduled
+threshold transitions are a Phase 5 responsibility.

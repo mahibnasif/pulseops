@@ -13,7 +13,9 @@ an organization membership.
 | Invite and remove members | Yes | No | No |
 | Change member roles | Yes | No | No |
 | Transfer ownership | Owner only | No | No |
-| Manage monitored services | Yes | Yes in later phases | No |
+| Create, edit, pause, resume, or delete services | Yes | No | No |
+| Run a manual service check | Yes | Yes | No |
+| View monitored services | Yes | Yes | Yes |
 | Manage incidents | Yes | Yes in later phases | No |
 | View dashboards and analytics | Yes | Yes | Yes |
 

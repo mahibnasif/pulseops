@@ -4,9 +4,9 @@ PulseOps is a cloud-based service monitoring and incident-management platform
 that checks application health, detects confirmed outages, alerts engineering
 teams, and tracks incidents through resolution.
 
-> Project status: Phase 3 (Organizations) is implemented. Service monitoring,
-> incidents, notifications, and analytics remain planned milestones and are not
-> represented as completed features.
+> Project status: Phase 4 (Service Management) is implemented. Scheduled
+> monitoring, incidents, notifications, and analytics remain planned milestones
+> and are not represented as completed features.
 
 ## Architecture
 
@@ -23,7 +23,8 @@ deployment and database while keeping clear package and service boundaries.
 This avoids distributed-system overhead before the product requires it.
 
 See [docs/architecture.md](docs/architecture.md) for module boundaries and
-runtime flows.
+runtime flows, and [docs/services.md](docs/services.md) for the Phase 4 service
+lifecycle and authorization model.
 
 ## Technology stack
 
@@ -60,12 +61,17 @@ runtime flows.
 - Hashed organization invitation tokens with email-bound acceptance
 - Member role changes, removal, leave, and ownership-transfer workflows
 - Responsive organization onboarding and team administration UI
+- Organization-scoped HTTP/HTTPS service creation, editing, filtering,
+  pausing, resuming, and soft deletion
+- Role-aware service inventory, configuration form, and service details UI
+- Bounded on-demand HTTP checks with status, text, JSON, and latency validation
+- URL validation and private/reserved target blocking by default
 
 ## Planned MVP
 
-The remaining MVP will add HTTP/HTTPS service monitoring, threshold-based
-outage detection, incident workflows, in-app notifications, server-sent events,
-and basic reliability analytics. See
+The remaining MVP will add scheduled service checks, threshold-based outage
+detection, incident workflows, in-app notifications, server-sent events, and
+basic reliability analytics. See
 [docs/api.md](docs/api.md) and
 [docs/monitoring-engine.md](docs/monitoring-engine.md).
 
@@ -127,10 +133,14 @@ docker compose down --volumes
 | `JWT_REFRESH_TOKEN_TTL` | `30d` | Refresh-session lifetime |
 | `REFRESH_COOKIE_SECURE` | `false` in Compose | Require HTTPS for refresh cookie |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Credentialed browser origins |
+| `MONITORING_ALLOW_PRIVATE_TARGETS` | `true` in local Compose; `false` otherwise | Allow checks to private network destinations |
+| `MONITORING_MAX_RESPONSE_BYTES` | `65536` | Maximum response bytes read by a manual check |
 
 The setup script creates an ignored `.env` and generates a 256-bit JWT key.
 Production secrets must come from a managed secret store, never committed files.
-Production must set `REFRESH_COOKIE_SECURE=true`.
+Production must set `REFRESH_COOKIE_SECURE=true` and
+`MONITORING_ALLOW_PRIVATE_TARGETS=false`. Local Compose deliberately enables
+private targets so the backend container can check the frontend container.
 
 ## Run tests
 
@@ -161,17 +171,18 @@ Set-Location -LiteralPath 'D:\Code\vibing\pulseops'
 ## Database design
 
 Flyway owns all schema changes. Hibernate validates mappings but never changes
-the schema. Phase 3 adds UUID-backed organization, membership, and invitation
-tables to the authentication foundation. See
+the schema. Phase 4 adds UUID-backed monitored services, response expectations,
+threshold configuration, lifecycle state, and check timestamps. See
 [docs/database.md](docs/database.md).
 
 ## Security
 
 Registration, login, refresh, and logout are public API operations. All other
 application routes require a valid bearer JWT. Organization-scoped operations
-also require an active membership and, where applicable, the `ADMIN` role. The
-monitoring client will require explicit SSRF defenses before accepting
-user-controlled URLs. See
+also require an active membership and the appropriate role. The manual checker
+rejects unsafe URL forms, disables redirects, validates resolved addresses,
+limits time and response size, and blocks private/reserved targets by default.
+See
 [docs/security.md](docs/security.md).
 
 ## Deployment
@@ -194,6 +205,14 @@ progress.
   are scheduled for later security/integration work.
 - Default Compose credentials are for local development only.
 - Email and live events are not implemented.
+- Manual checks record their timestamps but intentionally do not alter
+  threshold-based service status. Scheduled checks and check-result history
+  arrive in Phase 5.
+- TCP and JSON API service types are reserved for later phases; Phase 4 accepts
+  HTTP and HTTPS services only.
+- The current DNS preflight and HTTP connection are separate operations. Before
+  accepting untrusted production targets, the checker must pin or revalidate
+  the connected address to close the DNS-rebinding window.
 - Uptime metrics will be sampled estimates, not continuous SLA measurements.
 - npm currently reports a React Router advisory affecting RSC action handling.
   PulseOps is a client-only SPA and does not use RSC or server actions; the
