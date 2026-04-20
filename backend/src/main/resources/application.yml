@@ -48,3 +48,7 @@ pulseops:
   monitoring:
     allow-private-targets: ${MONITORING_ALLOW_PRIVATE_TARGETS:false}
     max-response-bytes: ${MONITORING_MAX_RESPONSE_BYTES:65536}
+    scheduler-enabled: ${MONITORING_SCHEDULER_ENABLED:true}
+    poll-interval-milliseconds: ${MONITORING_POLL_INTERVAL_MILLISECONDS:5000}
+    batch-size: ${MONITORING_BATCH_SIZE:10}
+    claim-lease-seconds: ${MONITORING_CLAIM_LEASE_SECONDS:120}

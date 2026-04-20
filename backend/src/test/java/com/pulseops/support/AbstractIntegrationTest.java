@@ -27,5 +27,6 @@ public abstract class AbstractIntegrationTest {
 				"pulseops.auth.jwt-secret",
 				() -> Base64.getEncoder().encodeToString(testKey));
 		registry.add("pulseops.auth.refresh-cookie-secure", () -> "false");
+		registry.add("pulseops.monitoring.scheduler-enabled", () -> "false");
 	}
 }

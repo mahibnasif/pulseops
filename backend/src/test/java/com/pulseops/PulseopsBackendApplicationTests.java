@@ -18,7 +18,7 @@ class PulseopsBackendApplicationTests extends AbstractIntegrationTest {
 				"select count(*) from flyway_schema_history where success",
 				Integer.class);
 
-		assertEquals(4, appliedMigrations);
+		assertEquals(5, appliedMigrations);
 	}
 
 }

@@ -32,7 +32,11 @@ public record ServiceResponse(
 		Instant updatedAt,
 		Instant lastCheckedAt,
 		Instant lastSuccessfulCheckAt,
-		Instant lastFailureAt) {
+		Instant lastFailureAt,
+		Instant nextCheckAt,
+		int consecutiveFailures,
+		int consecutiveSuccesses,
+		Instant lastStatusChangedAt) {
 
 	public static ServiceResponse from(MonitoredService service) {
 		return new ServiceResponse(
@@ -47,6 +51,8 @@ public record ServiceResponse(
 				service.getStatus(), service.isActive(), service.getCreatedBy(),
 				service.getCreatedAt(), service.getUpdatedAt(),
 				service.getLastCheckedAt(), service.getLastSuccessfulCheckAt(),
-				service.getLastFailureAt());
+				service.getLastFailureAt(), service.getNextCheckAt(),
+				service.getConsecutiveFailures(), service.getConsecutiveSuccesses(),
+				service.getLastStatusChangedAt());
 	}
 }

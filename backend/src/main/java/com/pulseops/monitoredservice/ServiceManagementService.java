@@ -8,8 +8,9 @@ import java.util.UUID;
 
 import com.pulseops.common.exception.ApiException;
 import com.pulseops.common.response.PageResponse;
+import com.pulseops.healthcheck.HealthCheckExecutionService;
+import com.pulseops.healthcheck.dto.HealthCheckResponse;
 import com.pulseops.monitoredservice.dto.CreateServiceRequest;
-import com.pulseops.monitoredservice.dto.ManualCheckResponse;
 import com.pulseops.monitoredservice.dto.ServiceResponse;
 import com.pulseops.monitoredservice.dto.UpdateServiceRequest;
 import com.pulseops.organization.OrganizationAccessService;
@@ -30,19 +31,19 @@ public class ServiceManagementService {
 	private final MonitoredServiceRepository serviceRepository;
 	private final OrganizationAccessService accessService;
 	private final TargetUrlValidator targetUrlValidator;
-	private final ManualHealthCheckClient healthCheckClient;
+	private final HealthCheckExecutionService healthCheckExecutionService;
 	private final Clock clock;
 
 	public ServiceManagementService(
 			MonitoredServiceRepository serviceRepository,
 			OrganizationAccessService accessService,
 			TargetUrlValidator targetUrlValidator,
-			ManualHealthCheckClient healthCheckClient,
+			HealthCheckExecutionService healthCheckExecutionService,
 			Clock clock) {
 		this.serviceRepository = serviceRepository;
 		this.accessService = accessService;
 		this.targetUrlValidator = targetUrlValidator;
-		this.healthCheckClient = healthCheckClient;
+		this.healthCheckExecutionService = healthCheckExecutionService;
 		this.clock = clock;
 	}
 
@@ -150,16 +151,14 @@ public class ServiceManagementService {
 		return ServiceResponse.from(service);
 	}
 
-	public ManualCheckResponse manualCheck(
+	public HealthCheckResponse manualCheck(
 			User user,
 			UUID organizationId,
 			UUID serviceId) {
 		accessService.requireEngineer(organizationId, user.getId());
 		var service = requireService(organizationId, serviceId);
-		var result = healthCheckClient.check(service);
-		service.recordManualCheck(result.success(), result.checkedAt());
-		serviceRepository.save(service);
-		return ManualCheckResponse.from(result);
+		return HealthCheckResponse.from(
+				healthCheckExecutionService.executeManual(service.getId()));
 	}
 
 	private ServiceConfiguration fromCreateRequest(CreateServiceRequest request) {

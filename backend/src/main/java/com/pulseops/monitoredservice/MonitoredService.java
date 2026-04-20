@@ -93,6 +93,24 @@ public class MonitoredService {
 	@Column(name = "last_failure_at")
 	private Instant lastFailureAt;
 
+	@Column(name = "next_check_at")
+	private Instant nextCheckAt;
+
+	@Column(name = "consecutive_failures", nullable = false)
+	private int consecutiveFailures;
+
+	@Column(name = "consecutive_successes", nullable = false)
+	private int consecutiveSuccesses;
+
+	@Column(name = "last_status_changed_at")
+	private Instant lastStatusChangedAt;
+
+	@Column(name = "check_claimed_by", length = 120)
+	private String checkClaimedBy;
+
+	@Column(name = "check_claimed_until")
+	private Instant checkClaimedUntil;
+
 	@Column(name = "deleted_at")
 	private Instant deletedAt;
 
@@ -113,6 +131,8 @@ public class MonitoredService {
 		this.status = ServiceStatus.UNKNOWN;
 		this.active = true;
 		this.createdAt = now;
+		this.nextCheckAt = now;
+		this.lastStatusChangedAt = now;
 		apply(configuration, now);
 	}
 
@@ -131,30 +151,90 @@ public class MonitoredService {
 	public void pause(Instant now) {
 		active = false;
 		status = ServiceStatus.PAUSED;
+		nextCheckAt = null;
+		consecutiveFailures = 0;
+		consecutiveSuccesses = 0;
+		clearClaim();
+		lastStatusChangedAt = now;
 		updatedAt = now;
 	}
 
 	public void resume(Instant now) {
 		active = true;
 		status = ServiceStatus.UNKNOWN;
+		nextCheckAt = now;
+		consecutiveFailures = 0;
+		consecutiveSuccesses = 0;
+		clearClaim();
+		lastStatusChangedAt = now;
 		updatedAt = now;
 	}
 
-	public void recordManualCheck(boolean success, Instant checkedAt) {
-		lastCheckedAt = checkedAt;
-		if (success) {
-			lastSuccessfulCheckAt = checkedAt;
+	public boolean applyCompletedCheck(
+			ManualCheckResult result,
+			Instant completedAt,
+			boolean scheduleNextCheck) {
+		if (!active || deletedAt != null) {
+			if (scheduleNextCheck) {
+				clearClaim();
+			}
+			return false;
+		}
+		var previousStatus = status;
+		lastCheckedAt = result.checkedAt();
+		if (result.success()) {
+			lastSuccessfulCheckAt = result.checkedAt();
+			consecutiveFailures = 0;
+			consecutiveSuccesses = Math.min(
+					recoveryThreshold,
+					consecutiveSuccesses + 1);
+			if (status != ServiceStatus.DOWN
+					|| consecutiveSuccesses >= recoveryThreshold) {
+				status = result.degraded()
+						? ServiceStatus.DEGRADED
+						: ServiceStatus.OPERATIONAL;
+			}
 		}
 		else {
-			lastFailureAt = checkedAt;
+			lastFailureAt = result.checkedAt();
+			consecutiveSuccesses = 0;
+			consecutiveFailures = Math.min(
+					failureThreshold,
+					consecutiveFailures + 1);
+			if (consecutiveFailures >= failureThreshold) {
+				status = ServiceStatus.DOWN;
+			}
 		}
-		updatedAt = checkedAt;
+		if (status != previousStatus) {
+			lastStatusChangedAt = completedAt;
+		}
+		if (scheduleNextCheck) {
+			nextCheckAt = completedAt.plusSeconds(checkIntervalSeconds);
+			clearClaim();
+		}
+		updatedAt = completedAt;
+		return true;
+	}
+
+	public boolean isClaimedBy(String owner) {
+		return owner != null && owner.equals(checkClaimedBy);
+	}
+
+	public void releaseClaim() {
+		clearClaim();
 	}
 
 	public void delete(Instant now) {
 		active = false;
+		nextCheckAt = null;
+		clearClaim();
 		deletedAt = now;
 		updatedAt = now;
+	}
+
+	private void clearClaim() {
+		checkClaimedBy = null;
+		checkClaimedUntil = null;
 	}
 
 	private void apply(ServiceConfiguration configuration, Instant now) {
@@ -202,4 +282,8 @@ public class MonitoredService {
 	public Instant getLastCheckedAt() { return lastCheckedAt; }
 	public Instant getLastSuccessfulCheckAt() { return lastSuccessfulCheckAt; }
 	public Instant getLastFailureAt() { return lastFailureAt; }
+	public Instant getNextCheckAt() { return nextCheckAt; }
+	public int getConsecutiveFailures() { return consecutiveFailures; }
+	public int getConsecutiveSuccesses() { return consecutiveSuccesses; }
+	public Instant getLastStatusChangedAt() { return lastStatusChangedAt; }
 }

@@ -9,8 +9,10 @@ import jakarta.validation.constraints.Min;
 
 import com.pulseops.common.response.PageResponse;
 import com.pulseops.common.security.CurrentUserService;
+import com.pulseops.healthcheck.CheckSource;
+import com.pulseops.healthcheck.HealthCheckQueryService;
+import com.pulseops.healthcheck.dto.HealthCheckResponse;
 import com.pulseops.monitoredservice.dto.CreateServiceRequest;
-import com.pulseops.monitoredservice.dto.ManualCheckResponse;
 import com.pulseops.monitoredservice.dto.ServiceResponse;
 import com.pulseops.monitoredservice.dto.UpdateServiceRequest;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -36,6 +38,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ServiceController {
 
 	private final ServiceManagementService serviceManagementService;
+	private final HealthCheckQueryService healthCheckQueryService;
 	private final CurrentUserService currentUserService;
 
 	@SuppressFBWarnings(
@@ -43,8 +46,10 @@ public class ServiceController {
 			justification = "Spring owns the injected singleton service for the controller lifetime.")
 	public ServiceController(
 			ServiceManagementService serviceManagementService,
+			HealthCheckQueryService healthCheckQueryService,
 			CurrentUserService currentUserService) {
 		this.serviceManagementService = serviceManagementService;
+		this.healthCheckQueryService = healthCheckQueryService;
 		this.currentUserService = currentUserService;
 	}
 
@@ -147,7 +152,7 @@ public class ServiceController {
 	}
 
 	@PostMapping("/{serviceId}/check")
-	ManualCheckResponse manualCheck(
+	HealthCheckResponse manualCheck(
 			@AuthenticationPrincipal Jwt jwt,
 			@PathVariable UUID organizationId,
 			@PathVariable UUID serviceId) {
@@ -155,5 +160,24 @@ public class ServiceController {
 				currentUserService.requireUser(jwt),
 				organizationId,
 				serviceId);
+	}
+
+	@GetMapping("/{serviceId}/checks")
+	PageResponse<HealthCheckResponse> checks(
+			@AuthenticationPrincipal Jwt jwt,
+			@PathVariable UUID organizationId,
+			@PathVariable UUID serviceId,
+			@RequestParam(required = false) CheckSource source,
+			@RequestParam(required = false) Boolean success,
+			@RequestParam(defaultValue = "0") @Min(0) int page,
+			@RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+		return healthCheckQueryService.list(
+				currentUserService.requireUser(jwt),
+				organizationId,
+				serviceId,
+				source,
+				success,
+				page,
+				size);
 	}
 }

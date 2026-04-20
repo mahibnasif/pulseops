@@ -15,6 +15,9 @@ import java.util.UUID;
 
 import com.jayway.jsonpath.JsonPath;
 import com.pulseops.auth.RefreshTokenRepository;
+import com.pulseops.healthcheck.HealthCheckClaimService;
+import com.pulseops.healthcheck.HealthCheckExecutionService;
+import com.pulseops.healthcheck.HealthCheckResultRepository;
 import com.pulseops.invitation.OrganizationInvitationRepository;
 import com.pulseops.membership.OrganizationMembershipRepository;
 import com.pulseops.organization.OrganizationRepository;
@@ -40,6 +43,15 @@ class ServiceApiIntegrationTests extends AbstractIntegrationTest {
 	private MonitoredServiceRepository serviceRepository;
 
 	@Autowired
+	private HealthCheckResultRepository checkResultRepository;
+
+	@Autowired
+	private HealthCheckClaimService claimService;
+
+	@Autowired
+	private HealthCheckExecutionService executionService;
+
+	@Autowired
 	private OrganizationInvitationRepository invitationRepository;
 
 	@Autowired
@@ -59,6 +71,7 @@ class ServiceApiIntegrationTests extends AbstractIntegrationTest {
 
 	@BeforeEach
 	void cleanDatabase() {
+		checkResultRepository.deleteAll();
 		serviceRepository.deleteAll();
 		invitationRepository.deleteAll();
 		membershipRepository.deleteAll();
@@ -185,7 +198,10 @@ class ServiceApiIntegrationTests extends AbstractIntegrationTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.success").value(true))
 				.andExpect(jsonPath("$.responseTimeMilliseconds").value(42))
-				.andExpect(jsonPath("$.affectsServiceStatus").value(false));
+				.andExpect(jsonPath("$.checkSource").value("MANUAL"))
+				.andExpect(jsonPath("$.statusBefore").value("UNKNOWN"))
+				.andExpect(jsonPath("$.statusAfter").value("OPERATIONAL"))
+				.andExpect(jsonPath("$.affectsServiceStatus").value(true));
 
 		mockMvc.perform(get(
 						"/api/v1/organizations/{org}/services/{service}",
@@ -197,6 +213,53 @@ class ServiceApiIntegrationTests extends AbstractIntegrationTest {
 
 		assertThat(serviceRepository.findById(serviceId).orElseThrow().getLastCheckedAt())
 				.isEqualTo(Instant.parse("2026-07-30T12:00:00Z"));
+		assertThat(checkResultRepository.count()).isEqualTo(1);
+	}
+
+	@Test
+	void claimsDueServicesPersistsScheduledHistoryAndRejectsAStaleWorker()
+			throws Exception {
+		var owner = register("owner@example.com", "Owner");
+		var organizationId = createOrganization(owner, "Platform");
+		var created = createService(
+				owner, organizationId, "Scheduler API", "HTTPS", "https://example.com")
+				.andExpect(status().isCreated())
+				.andReturn();
+		var serviceId = UUID.fromString(read(created, "$.id"));
+		when(healthCheckClient.check(any())).thenReturn(new ManualCheckResult(
+				Instant.parse("2026-07-30T12:30:00Z"),
+				true,
+				false,
+				200,
+				35,
+				null,
+				null,
+				true,
+				"healthy"));
+
+		var claimed = claimService.claimDue("integration-worker");
+		assertThat(claimed).contains(serviceId);
+		assertThat(executionService.executeScheduled(serviceId, "integration-worker"))
+				.isPresent();
+		assertThat(executionService.executeScheduled(serviceId, "stale-worker"))
+				.isEmpty();
+
+		mockMvc.perform(get(
+						"/api/v1/organizations/{org}/services/{service}/checks",
+						organizationId,
+						serviceId)
+						.header(HttpHeaders.AUTHORIZATION, bearer(owner.accessToken())))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(1))
+				.andExpect(jsonPath("$.content[0].checkSource").value("SCHEDULED"))
+				.andExpect(jsonPath("$.content[0].statusBefore").value("UNKNOWN"))
+				.andExpect(jsonPath("$.content[0].statusAfter").value("OPERATIONAL"));
+
+		var service = serviceRepository.findById(serviceId).orElseThrow();
+		assertThat(service.getStatus()).isEqualTo(ServiceStatus.OPERATIONAL);
+		assertThat(service.getConsecutiveSuccesses()).isEqualTo(1);
+		assertThat(service.getNextCheckAt()).isAfter(Instant.now());
+		assertThat(claimService.claimDue("another-worker")).doesNotContain(serviceId);
 	}
 
 	@Test
