@@ -32,6 +32,10 @@ export interface MonitoredService {
   lastCheckedAt: string | null
   lastSuccessfulCheckAt: string | null
   lastFailureAt: string | null
+  nextCheckAt: string | null
+  consecutiveFailures: number
+  consecutiveSuccesses: number
+  lastStatusChangedAt: string | null
 }
 
 export interface ServicePage {
@@ -62,6 +66,8 @@ export interface ServiceInput {
 }
 
 export interface ManualCheckResult {
+  id: string
+  serviceId: string
   checkedAt: string
   success: boolean
   degraded: boolean
@@ -71,5 +77,19 @@ export interface ManualCheckResult {
   errorMessage: string | null
   responseValidationPassed: boolean
   responseExcerpt: string | null
-  affectsServiceStatus: false
+  checkSource: 'MANUAL' | 'SCHEDULED'
+  statusBefore: ServiceStatus
+  statusAfter: ServiceStatus
+  affectsServiceStatus: boolean
+  createdAt: string
+}
+
+export interface HealthCheckPage {
+  content: ManualCheckResult[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  first: boolean
+  last: boolean
 }

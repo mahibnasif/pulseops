@@ -152,7 +152,7 @@ export function ServiceFormPage() {
               </label>
             </div>
           </FormSection>
-          <FormSection title="Monitoring policy" description="Phase 5 will apply these thresholds to scheduled checks.">
+          <FormSection title="Monitoring policy" description="Scheduled and manual checks apply these thresholds.">
             <div className="form-grid form-grid-3">
               <NumberField label="Timeout (ms)" value={form.timeoutMilliseconds} min={250} max={60000} onChange={(v) => set('timeoutMilliseconds', v)} />
               <NumberField label="Interval (seconds)" value={form.checkIntervalSeconds} min={30} max={86400} onChange={(v) => set('checkIntervalSeconds', v)} />

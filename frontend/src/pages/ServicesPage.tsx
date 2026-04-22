@@ -22,6 +22,7 @@ export function ServicesPage() {
         status,
       }),
     enabled: Boolean(organizationId),
+    refetchInterval: 10_000,
   })
   const canManage = currentOrganization?.currentUserRole === 'ADMIN'
 

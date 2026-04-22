@@ -17,10 +17,21 @@ export function ServiceDetailsPage() {
     queryKey: ['service', organizationId, serviceId],
     queryFn: () => serviceApi.getService(auth.accessToken!, organizationId!, serviceId!),
     enabled: Boolean(organizationId && serviceId),
+    refetchInterval: 10_000,
+  })
+  const checks = useQuery({
+    queryKey: ['service-checks', organizationId, serviceId],
+    queryFn: () =>
+      serviceApi.listChecks(auth.accessToken!, organizationId!, serviceId!),
+    enabled: Boolean(organizationId && serviceId),
+    refetchInterval: 10_000,
   })
   const canManage = currentOrganization?.currentUserRole === 'ADMIN'
   const canCheck = currentOrganization?.currentUserRole !== 'VIEWER'
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['service', organizationId, serviceId] })
+  const refresh = () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['service', organizationId, serviceId] }),
+    queryClient.invalidateQueries({ queryKey: ['service-checks', organizationId, serviceId] }),
+  ])
   const pause = useMutation({ mutationFn: () => serviceApi.pauseService(auth.accessToken!, organizationId!, serviceId!), onSuccess: refresh })
   const resume = useMutation({ mutationFn: () => serviceApi.resumeService(auth.accessToken!, organizationId!, serviceId!), onSuccess: refresh })
   const check = useMutation({ mutationFn: () => serviceApi.runManualCheck(auth.accessToken!, organizationId!, serviceId!), onSuccess: refresh })
@@ -56,7 +67,7 @@ export function ServiceDetailsPage() {
           <section className={`check-result ${check.data.success ? 'check-success' : 'check-failure'}`}>
             <div><strong>{check.data.success ? 'Check passed' : 'Check failed'}</strong><span>{check.data.responseTimeMilliseconds} ms · HTTP {check.data.statusCode ?? '—'}</span></div>
             <p>{check.data.errorMessage ?? (check.data.degraded ? 'Healthy, but above the degraded latency threshold.' : 'All configured expectations passed.')}</p>
-            <small>Manual checks do not change threshold-based service status.</small>
+            <small>This result was persisted and applied to the configured thresholds.</small>
           </section>
         )}
         {check.error && <div className="notice">The manual check could not be completed.</div>}
@@ -78,9 +89,40 @@ export function ServiceDetailsPage() {
               <div><dt>Failure threshold</dt><dd>{value.failureThreshold}</dd></div>
               <div><dt>Recovery threshold</dt><dd>{value.recoveryThreshold}</dd></div>
               <div><dt>Degraded latency</dt><dd>{value.degradedLatencyThresholdMilliseconds} ms</dd></div>
+              <div><dt>Consecutive failures</dt><dd>{value.consecutiveFailures} / {value.failureThreshold}</dd></div>
+              <div><dt>Consecutive successes</dt><dd>{value.consecutiveSuccesses} / {value.recoveryThreshold}</dd></div>
               <div><dt>Last checked</dt><dd>{value.lastCheckedAt ? new Date(value.lastCheckedAt).toLocaleString() : 'Never'}</dd></div>
+              <div><dt>Next scheduled check</dt><dd>{value.nextCheckAt ? new Date(value.nextCheckAt).toLocaleString() : 'Not scheduled'}</dd></div>
             </dl>
           </article>
+        </section>
+        <section className="workspace-card check-history">
+          <div className="history-heading">
+            <div><p className="eyebrow">Check history</p><h2>Recent monitoring results</h2></div>
+            <span>{checks.data?.totalElements ?? 0} recorded</span>
+          </div>
+          {checks.isLoading ? (
+            <div className="history-empty">Loading check history…</div>
+          ) : checks.data?.content.length ? (
+            <div className="history-table-wrap">
+              <table className="history-table">
+                <thead><tr><th>Result</th><th>Response</th><th>Source</th><th>Status transition</th><th>Checked</th></tr></thead>
+                <tbody>
+                  {checks.data.content.map((result) => (
+                    <tr key={result.id}>
+                      <td><span className={`history-result ${result.success ? 'history-success' : 'history-failure'}`}>{result.success ? (result.degraded ? 'Degraded' : 'Passed') : 'Failed'}</span>{result.errorType && <small>{result.errorType.replaceAll('_', ' ')}</small>}</td>
+                      <td><strong>{result.responseTimeMilliseconds} ms</strong><span>{result.statusCode ? `HTTP ${result.statusCode}` : 'No response'}</span></td>
+                      <td>{result.checkSource.toLowerCase()}</td>
+                      <td><ServiceStatusBadge status={result.statusAfter} /><small>{result.statusBefore.toLowerCase()} → {result.statusAfter.toLowerCase()}</small></td>
+                      <td>{new Date(result.checkedAt).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="history-empty">No health checks have completed yet.</div>
+          )}
         </section>
         {value.description && <section className="workspace-card service-description"><p className="eyebrow">Description</p><p>{value.description}</p></section>}
         {canManage && <section className="danger-zone"><div><h2>Delete service</h2><p>Soft-delete this service from the active inventory.</p></div><button className="button-danger" disabled={remove.isPending} onClick={() => remove.mutate()}>Delete service</button></section>}

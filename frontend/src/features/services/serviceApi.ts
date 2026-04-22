@@ -1,6 +1,7 @@
 import { ApiError, type ApiErrorBody } from '../../api/ApiError'
 import type {
   ManualCheckResult,
+  HealthCheckPage,
   MonitoredService,
   ServiceInput,
   ServicePage,
@@ -132,5 +133,16 @@ export function runManualCheck(
     `${base(organizationId)}/${serviceId}/check`,
     accessToken,
     { method: 'POST' },
+  )
+}
+
+export function listChecks(
+  accessToken: string,
+  organizationId: string,
+  serviceId: string,
+) {
+  return request<HealthCheckPage>(
+    `${base(organizationId)}/${serviceId}/checks?size=20`,
+    accessToken,
   )
 }

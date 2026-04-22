@@ -72,6 +72,10 @@ const publicApiService: MonitoredService = {
   lastCheckedAt: null,
   lastSuccessfulCheckAt: null,
   lastFailureAt: null,
+  nextCheckAt: '2026-07-30T00:01:00Z',
+  consecutiveFailures: 0,
+  consecutiveSuccesses: 0,
+  lastStatusChangedAt: '2026-07-30T00:00:00Z',
 }
 
 const servicePage: ServicePage = {
@@ -80,6 +84,16 @@ const servicePage: ServicePage = {
   size: 50,
   totalElements: 1,
   totalPages: 1,
+  first: true,
+  last: true,
+}
+
+const emptyCheckPage = {
+  content: [],
+  page: 0,
+  size: 20,
+  totalElements: 0,
+  totalPages: 0,
   first: true,
   last: true,
 }
@@ -452,6 +466,12 @@ describe('PulseOps service management', () => {
         ) {
           return jsonResponse(createdService)
         }
+        if (
+          path ===
+          `/api/v1/organizations/${platformOrganization.id}/services/${publicApiService.id}/checks?size=20`
+        ) {
+          return jsonResponse(emptyCheckPage)
+        }
         throw new Error(`Unexpected request: ${path}`)
       },
     )
@@ -488,6 +508,8 @@ describe('PulseOps service management', () => {
       currentUserRole: 'ENGINEER' as const,
     }
     const manualResult: ManualCheckResult = {
+      id: '15808dd3-e772-4437-9164-cc4207993f7e',
+      serviceId: publicApiService.id,
       checkedAt: '2026-07-30T01:00:00Z',
       success: true,
       degraded: false,
@@ -497,8 +519,13 @@ describe('PulseOps service management', () => {
       errorMessage: null,
       responseValidationPassed: true,
       responseExcerpt: 'healthy',
-      affectsServiceStatus: false,
+      checkSource: 'MANUAL',
+      statusBefore: 'UNKNOWN',
+      statusAfter: 'OPERATIONAL',
+      affectsServiceStatus: true,
+      createdAt: '2026-07-30T01:00:01Z',
     }
+    let checked = false
     const fetchMock = vi.fn(
       async (input: string | URL | Request, options?: RequestInit) => {
         const path = String(input)
@@ -513,7 +540,23 @@ describe('PulseOps service management', () => {
           `/api/v1/organizations/${engineerOrganization.id}/services/${publicApiService.id}/check`
         ) {
           expect(options?.method).toBe('POST')
+          checked = true
           return jsonResponse(manualResult)
+        }
+        if (
+          path ===
+          `/api/v1/organizations/${engineerOrganization.id}/services/${publicApiService.id}/checks?size=20`
+        ) {
+          return jsonResponse(
+            checked
+              ? {
+                  ...emptyCheckPage,
+                  content: [manualResult],
+                  totalElements: 1,
+                  totalPages: 1,
+                }
+              : emptyCheckPage,
+          )
         }
         if (
           path ===
@@ -538,6 +581,7 @@ describe('PulseOps service management', () => {
     )
 
     expect(await screen.findByText(/check passed/i)).toBeInTheDocument()
-    expect(screen.getByText(/84 ms/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/84 ms/i)).not.toHaveLength(0)
+    expect(await screen.findByText(/1 recorded/i)).toBeInTheDocument()
   })
 })
