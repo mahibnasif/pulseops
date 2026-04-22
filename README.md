@@ -4,9 +4,9 @@ PulseOps is a cloud-based service monitoring and incident-management platform
 that checks application health, detects confirmed outages, alerts engineering
 teams, and tracks incidents through resolution.
 
-> Project status: Phase 4 (Service Management) is implemented. Scheduled
-> monitoring, incidents, notifications, and analytics remain planned milestones
-> and are not represented as completed features.
+> Project status: Phase 5 (Monitoring Engine) is implemented. Incidents,
+> notifications, real-time events, and analytics remain planned milestones and
+> are not represented as completed features.
 
 ## Architecture
 
@@ -66,12 +66,15 @@ lifecycle and authorization model.
 - Role-aware service inventory, configuration form, and service details UI
 - Bounded on-demand HTTP checks with status, text, JSON, and latency validation
 - URL validation and private/reserved target blocking by default
+- Database-claimed scheduled monitoring with bounded batches and expiring leases
+- Persisted manual and scheduled health-check history
+- Consecutive failure/recovery thresholds with degraded-latency status
+- Responsive check-history and threshold-progress views
 
 ## Planned MVP
 
-The remaining MVP will add scheduled service checks, threshold-based outage
-detection, incident workflows, in-app notifications, server-sent events, and
-basic reliability analytics. See
+The remaining MVP will add incident workflows, in-app notifications,
+server-sent events, and basic reliability analytics. See
 [docs/api.md](docs/api.md) and
 [docs/monitoring-engine.md](docs/monitoring-engine.md).
 
@@ -135,6 +138,10 @@ docker compose down --volumes
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Credentialed browser origins |
 | `MONITORING_ALLOW_PRIVATE_TARGETS` | `true` in local Compose; `false` otherwise | Allow checks to private network destinations |
 | `MONITORING_MAX_RESPONSE_BYTES` | `65536` | Maximum response bytes read by a manual check |
+| `MONITORING_SCHEDULER_ENABLED` | `true` | Enable the scheduled monitoring worker |
+| `MONITORING_POLL_INTERVAL_MILLISECONDS` | `5000` | Delay between due-service claim batches |
+| `MONITORING_BATCH_SIZE` | `10` | Maximum services claimed per scheduler pass |
+| `MONITORING_CLAIM_LEASE_SECONDS` | `120` | Time before an unfinished claim can be recovered |
 
 The setup script creates an ignored `.env` and generates a 256-bit JWT key.
 Production secrets must come from a managed secret store, never committed files.
@@ -171,8 +178,8 @@ Set-Location -LiteralPath 'D:\Code\vibing\pulseops'
 ## Database design
 
 Flyway owns all schema changes. Hibernate validates mappings but never changes
-the schema. Phase 4 adds UUID-backed monitored services, response expectations,
-threshold configuration, lifecycle state, and check timestamps. See
+the schema. Phase 5 adds durable check results, threshold counters, due times,
+and expiring scheduler claims. See
 [docs/database.md](docs/database.md).
 
 ## Security
@@ -205,9 +212,11 @@ progress.
   are scheduled for later security/integration work.
 - Default Compose credentials are for local development only.
 - Email and live events are not implemented.
-- Manual checks record their timestamps but intentionally do not alter
-  threshold-based service status. Scheduled checks and check-result history
-  arrive in Phase 5.
+- Automatic incident creation is Phase 6. A transition to `DOWN` is persisted
+  now, but it does not yet open an incident or send a notification.
+- The scheduler processes a bounded batch sequentially per application
+  instance. Database claims support multiple instances, but higher-throughput
+  worker pools are deferred until measurements justify them.
 - TCP and JSON API service types are reserved for later phases; Phase 4 accepts
   HTTP and HTTPS services only.
 - The current DNS preflight and HTTP connection are separate operations. Before

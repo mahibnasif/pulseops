@@ -40,8 +40,14 @@ authorization, pause/resume/delete lifecycle, list filters, and manual-check
 result semantics. Focused checker tests cover status, text, JSON, latency,
 response caps, private destinations, redirects, and safe network failures.
 Frontend tests cover the service inventory, creation-to-details flow, and
-engineer manual checks without administrator controls. The current gate contains
-17 backend tests and 12 frontend tests.
+engineer manual checks without administrator controls.
+
+Phase 5 tests cover failure hysteresis, recovery hysteresis, degradation,
+transient failures, scheduled next-run calculation, paused-result handling,
+atomic due-service claims, stale-worker rejection, persisted transition
+history, and the Flyway V5 schema. Frontend coverage verifies that manual
+results refresh persisted history. The current gate contains 22 backend tests
+and 12 frontend tests.
 
 Coverage is used to find untested risk, not as a vanity target. Security and
 concurrency paths require explicit tests even if aggregate line coverage is

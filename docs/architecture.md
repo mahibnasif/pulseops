@@ -39,8 +39,13 @@ Phase 4 implements the `monitoredservice` module and the immediate HTTP checker.
 Controllers handle organization-scoped DTOs; the application service enforces
 membership, roles, lifecycle, and duplicate-name rules; the repository owns
 tenant-filtered persistence; and the checker performs one bounded request.
-Manual checks update last-check timestamps but do not invoke the future
-threshold state machine.
+
+Phase 5 adds the `healthcheck` module. A scheduler atomically claims a bounded
+due batch with PostgreSQL row locks and `SKIP LOCKED`, then performs network I/O
+outside database transactions. Completed results lock one service row, verify
+scheduled claim ownership, persist history, update counters/status, set the next
+due time, and release the claim in one transaction. Expired claims make
+unfinished work eligible after a worker or application restart.
 
 ## Authentication flow
 

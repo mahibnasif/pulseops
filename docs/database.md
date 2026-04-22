@@ -68,4 +68,8 @@ organization reference where doing so strengthens authorization and integrity.
 `V3` creates organization, membership, and invitation tables with foreign keys,
 checks, uniqueness guarantees, and tenant lookup indexes. `V4` creates monitored
 services with lifecycle, validation, uniqueness, tenant-status, and
-tenant-lifecycle indexes.
+tenant-lifecycle indexes. `V5` adds due times, consecutive counters, status
+change timestamps, and expiring claim fields to monitored services. It also
+creates `health_check_results` with organization/service foreign keys,
+validation constraints, source and transition metadata, and descending
+service/time and organization/time indexes.

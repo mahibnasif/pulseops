@@ -105,7 +105,8 @@ administrators can run manual checks; viewers cannot.
 | `DELETE` | `/api/v1/organizations/{id}/services/{serviceId}` | `ADMIN` | Soft-delete a service |
 | `POST` | `/api/v1/organizations/{id}/services/{serviceId}/pause` | `ADMIN` | Pause scheduled monitoring |
 | `POST` | `/api/v1/organizations/{id}/services/{serviceId}/resume` | `ADMIN` | Resume with `UNKNOWN` status |
-| `POST` | `/api/v1/organizations/{id}/services/{serviceId}/check` | `ADMIN` or `ENGINEER` | Run an immediate bounded check |
+| `POST` | `/api/v1/organizations/{id}/services/{serviceId}/check` | `ADMIN` or `ENGINEER` | Run, persist, and apply an immediate check |
+| `GET` | `/api/v1/organizations/{id}/services/{serviceId}/checks` | Active member | View paginated check history |
 
 List query parameters include `search`, `status`, `active`, `page`, `size`,
 `sort`, and `direction`. Active service names are unique within an
@@ -114,6 +115,11 @@ organization, case-insensitively.
 Phase 4 accepts absolute HTTP/HTTPS URLs and `GET` or `HEAD`. Optional response
 expectations support text containment or a paired simple JSON path/value such
 as `$.status = healthy`. Manual-check responses report success, degradation,
-HTTP status, elapsed time, validation outcome, a bounded excerpt, and safe
-failure details. They explicitly return `affectsServiceStatus=false`; scheduled
-threshold transitions are a Phase 5 responsibility.
+HTTP status, elapsed time, validation outcome, a bounded excerpt, source,
+before/after service status, and safe failure details. Manual and scheduled
+checks use the same persisted threshold transition path.
+
+Check-history parameters include `source`, `success`, `page`, and `size`.
+Results are ordered newest first. A result records whether it was applied to
+status; a scheduled result that finishes after monitoring was paused is retained
+without changing `PAUSED`.

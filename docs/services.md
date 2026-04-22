@@ -31,16 +31,16 @@ are only a usability aid.
 
 New services start active with `UNKNOWN` status. Pausing makes a service
 inactive and `PAUSED`. Resuming makes it active and returns it to `UNKNOWN`;
-scheduled monitoring will establish a threshold-based status in Phase 5.
+the next completed checks establish a threshold-based status.
 Deletion is soft deletion, preserving the row for future audit relationships
 while excluding it from active resource endpoints.
 
 ## Manual checks
 
 A manual check performs one bounded request and evaluates the configured
-expectations. It updates `lastCheckedAt` plus the latest success or failure
-timestamp. It does not change the service status, persist historical samples,
-increment outage counters, or create incidents.
+expectations. It persists the sample, updates the latest timestamps and
+consecutive counters, and applies the same status transition rules as scheduled
+checks. It does not create incidents; that begins in Phase 6.
 
 The application blocks private and reserved destinations by default. Local
 Compose enables private targets solely for container-to-container development

@@ -48,7 +48,7 @@ Password hashes never cross the DTO boundary.
 
 ## SSRF policy
 
-The Phase 4 manual HTTP checker:
+The HTTP checker used by manual and scheduled monitoring:
 
 - allows only absolute `http` and `https` URLs;
 - rejects credentials, fragments, malformed URLs, and unsupported schemes;
