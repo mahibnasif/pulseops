@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import com.pulseops.common.exception.ApiException;
+import com.pulseops.incident.IncidentAutomationService;
 import com.pulseops.monitoredservice.ManualCheckResult;
 import com.pulseops.monitoredservice.MonitoredServiceRepository;
 import org.springframework.http.HttpStatus;
@@ -17,14 +18,17 @@ public class HealthCheckRecordService {
 
 	private final MonitoredServiceRepository serviceRepository;
 	private final HealthCheckResultRepository resultRepository;
+	private final IncidentAutomationService incidentAutomationService;
 	private final Clock clock;
 
 	public HealthCheckRecordService(
 			MonitoredServiceRepository serviceRepository,
 			HealthCheckResultRepository resultRepository,
+			IncidentAutomationService incidentAutomationService,
 			Clock clock) {
 		this.serviceRepository = serviceRepository;
 		this.resultRepository = resultRepository;
+		this.incidentAutomationService = incidentAutomationService;
 		this.clock = clock;
 	}
 
@@ -35,6 +39,7 @@ public class HealthCheckRecordService {
 		var before = service.getStatus();
 		var now = Instant.now(clock);
 		var applied = service.applyCompletedCheck(result, now, false);
+		incidentAutomationService.onStatusTransition(service, before, applied, now);
 		return resultRepository.save(HealthCheckResult.create(
 				service, result, CheckSource.MANUAL, before, applied, now));
 	}
@@ -51,6 +56,7 @@ public class HealthCheckRecordService {
 		var before = service.getStatus();
 		var now = Instant.now(clock);
 		var applied = service.applyCompletedCheck(result, now, true);
+		incidentAutomationService.onStatusTransition(service, before, applied, now);
 		return Optional.of(resultRepository.save(HealthCheckResult.create(
 				service, result, CheckSource.SCHEDULED, before, applied, now)));
 	}
