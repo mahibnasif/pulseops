@@ -47,6 +47,13 @@ scheduled claim ownership, persist history, update counters/status, set the next
 due time, and release the claim in one transaction. Expired claims make
 unfinished work eligible after a worker or application restart.
 
+Phase 6 adds the `incident` module. An applied transition into `DOWN` opens one
+automatic incident in the same completion transaction. Recovery moves that
+incident to `MONITORING` and appends a recovery event without silently
+resolving it. Manual and automatic incidents share the same tenant-safe
+assignment, comments, lifecycle, resolution, and append-only timeline
+services.
+
 ## Authentication flow
 
 The SPA sends credentials only to the authentication API. The backend verifies

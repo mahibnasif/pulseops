@@ -46,8 +46,14 @@ Phase 5 tests cover failure hysteresis, recovery hysteresis, degradation,
 transient failures, scheduled next-run calculation, paused-result handling,
 atomic due-service claims, stale-worker rejection, persisted transition
 history, and the Flyway V5 schema. Frontend coverage verifies that manual
-results refresh persisted history. The current gate contains 22 backend tests
-and 12 frontend tests.
+results refresh persisted history.
+
+Phase 6 integration tests cover duplicate-safe automatic creation, recovery
+timeline behavior, the complete manual workflow, assignment validation,
+comments, resolution, reopening, viewer authorization, and cross-tenant
+isolation. Frontend tests cover the filtered register, engineer response
+controls, timeline rendering, and the viewer's read-only workspace. The
+current gate contains 25 backend tests and 15 frontend tests.
 
 Coverage is used to find untested risk, not as a vanity target. Security and
 concurrency paths require explicit tests even if aggregate line coverage is

@@ -53,8 +53,8 @@ Authorization performs membership and role checks before resource lookup
 results are exposed. A UUID is an identifier, not an authorization mechanism.
 
 Organization and membership discovery collections are intentionally
-unpaginated because they are bounded team/workspace lists. Service collections
-are paginated. Incident, notification, analytics, and audit collections will
+unpaginated because they are bounded team/workspace lists. Service and incident
+collections are paginated. Notification, analytics, and audit collections will
 be paginated when introduced.
 
 ## Organization endpoints
@@ -123,3 +123,24 @@ Check-history parameters include `source`, `success`, `page`, and `size`.
 Results are ordered newest first. A result records whether it was applied to
 status; a scheduled result that finishes after monitoring was paused is retained
 without changing `PAUSED`.
+
+## Incident endpoints
+
+All paths are organization scoped. Any active member can read incidents.
+Administrators and engineers can declare and manage them; viewers are
+read-only.
+
+| Method | Path | Required access | Purpose |
+|---|---|---|---|
+| `GET` | `/api/v1/organizations/{id}/incidents` | Active member | Search, filter, sort, and paginate incidents |
+| `POST` | `/api/v1/organizations/{id}/incidents` | `ADMIN` or `ENGINEER` | Declare a manual incident |
+| `GET` | `/api/v1/organizations/{id}/incidents/{incidentId}` | Active member | Read details, comments, and timeline |
+| `PATCH` | `/api/v1/organizations/{id}/incidents/{incidentId}` | `ADMIN` or `ENGINEER` | Update details, severity, or active workflow status |
+| `POST` | `/api/v1/organizations/{id}/incidents/{incidentId}/assign` | `ADMIN` or `ENGINEER` | Assign or unassign an active organization member |
+| `POST` | `/api/v1/organizations/{id}/incidents/{incidentId}/comments` | `ADMIN` or `ENGINEER` | Add a response note |
+| `POST` | `/api/v1/organizations/{id}/incidents/{incidentId}/resolve` | `ADMIN` or `ENGINEER` | Resolve with a required summary |
+| `POST` | `/api/v1/organizations/{id}/incidents/{incidentId}/reopen` | `ADMIN` or `ENGINEER` | Reopen a resolved incident |
+
+List filters include `status`, `severity`, `serviceId`, `assigneeId`, and
+case-insensitive title `search`. Resolution uses its dedicated endpoint so the
+required resolution summary and resolved timestamp remain consistent.

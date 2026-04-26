@@ -73,3 +73,12 @@ change timestamps, and expiring claim fields to monitored services. It also
 creates `health_check_results` with organization/service foreign keys,
 validation constraints, source and transition metadata, and descending
 service/time and organization/time indexes.
+
+`V6` creates `incidents`, `incident_comments`, and
+`incident_timeline_events`. Incident rows carry the tenant and affected
+service, severity, lifecycle state, source, assignment, response timestamps,
+root cause, and resolution summary. Foreign keys constrain services, members,
+authors, and actors. A partial unique index permits only one unresolved
+automatic-monitoring incident per service while allowing manual incidents and
+historical resolved incidents. Tenant/status, service/status, assignee/status,
+comment, and timeline indexes support the response workspace.

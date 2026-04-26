@@ -4,9 +4,9 @@ PulseOps is a cloud-based service monitoring and incident-management platform
 that checks application health, detects confirmed outages, alerts engineering
 teams, and tracks incidents through resolution.
 
-> Project status: Phase 5 (Monitoring Engine) is implemented. Incidents,
-> notifications, real-time events, and analytics remain planned milestones and
-> are not represented as completed features.
+> Project status: Phase 6 (Incidents) is implemented. Notifications, real-time
+> events, and analytics remain planned milestones and are not represented as
+> completed features.
 
 ## Architecture
 
@@ -70,12 +70,16 @@ lifecycle and authorization model.
 - Persisted manual and scheduled health-check history
 - Consecutive failure/recovery thresholds with degraded-latency status
 - Responsive check-history and threshold-progress views
+- Automatic, duplicate-safe incident creation when a service enters `DOWN`
+- Incident filtering, manual declaration, assignment, comments, and timeline
+- Role-aware incident workflow, resolution documentation, and reopening
+- Service-linked incident history in the response workspace
 
 ## Planned MVP
 
-The remaining MVP will add incident workflows, in-app notifications,
-server-sent events, and basic reliability analytics. See
-[docs/api.md](docs/api.md) and
+The remaining MVP will add in-app notifications, server-sent events, and basic
+reliability analytics. See [docs/api.md](docs/api.md),
+[docs/incidents.md](docs/incidents.md), and
 [docs/monitoring-engine.md](docs/monitoring-engine.md).
 
 ## Prerequisites
@@ -178,8 +182,8 @@ Set-Location -LiteralPath 'D:\Code\vibing\pulseops'
 ## Database design
 
 Flyway owns all schema changes. Hibernate validates mappings but never changes
-the schema. Phase 5 adds durable check results, threshold counters, due times,
-and expiring scheduler claims. See
+the schema. Phase 6 adds tenant-owned incidents, comments, and an immutable
+response timeline. See
 [docs/database.md](docs/database.md).
 
 ## Security
@@ -212,8 +216,7 @@ progress.
   are scheduled for later security/integration work.
 - Default Compose credentials are for local development only.
 - Email and live events are not implemented.
-- Automatic incident creation is Phase 6. A transition to `DOWN` is persisted
-  now, but it does not yet open an incident or send a notification.
+- Incident notifications and external delivery are not implemented yet.
 - The scheduler processes a bounded batch sequentially per application
   instance. Database claims support multiple instances, but higher-throughput
   worker pools are deferred until measurements justify them.

@@ -48,13 +48,19 @@ The scheduler currently executes each claimed batch sequentially. This is a
 deliberate bounded MVP design; parallel executors require measured capacity,
 back-pressure, and shutdown behavior.
 
-## Later phase integrations
+## Incident integration
 
-Phase 5 stops after persisting the status transition. Later phases will:
+An applied transition into `DOWN` creates a `HIGH` severity automatic incident
+in the same transaction as the health result and service state. A service lock
+serializes completions, and PostgreSQL also enforces one unresolved automatic
+incident per service. Repeated failures while already down do not create
+duplicates.
 
-1. Create or update an incident when a service reaches `DOWN`.
-2. Persist notifications for status and incident changes.
-3. Publish organization-scoped live events.
+When a down service reaches its recovery threshold, the automatic incident
+moves to `MONITORING` and records a `SERVICE_RECOVERED` timeline event. A human
+still documents the resolution and closes the incident. Later phases will
+persist notifications and publish organization-scoped live events for these
+changes.
 
 ## Availability
 
