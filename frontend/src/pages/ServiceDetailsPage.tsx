@@ -5,6 +5,11 @@ import { ServiceStatusBadge } from '../components/services/ServiceStatusBadge'
 import { useAuth } from '../features/auth/useAuth'
 import { useOrganizations } from '../features/organizations/useOrganizations'
 import * as serviceApi from '../features/services/serviceApi'
+import * as incidentApi from '../features/incidents/incidentApi'
+import {
+  IncidentSeverityBadge,
+  IncidentStatusBadge,
+} from '../components/incidents/IncidentBadges'
 
 export function ServiceDetailsPage() {
   const auth = useAuth()
@@ -23,6 +28,15 @@ export function ServiceDetailsPage() {
     queryKey: ['service-checks', organizationId, serviceId],
     queryFn: () =>
       serviceApi.listChecks(auth.accessToken!, organizationId!, serviceId!),
+    enabled: Boolean(organizationId && serviceId),
+    refetchInterval: 10_000,
+  })
+  const incidents = useQuery({
+    queryKey: ['incidents', organizationId, 'service', serviceId],
+    queryFn: () =>
+      incidentApi.listIncidents(auth.accessToken!, organizationId!, {
+        serviceId,
+      }),
     enabled: Boolean(organizationId && serviceId),
     refetchInterval: 10_000,
   })
@@ -122,6 +136,33 @@ export function ServiceDetailsPage() {
             </div>
           ) : (
             <div className="history-empty">No health checks have completed yet.</div>
+          )}
+        </section>
+        <section className="workspace-card check-history">
+          <div className="history-heading">
+            <div>
+              <p className="eyebrow">Related incidents</p>
+              <h2>Operational events</h2>
+            </div>
+            <Link to={`/incidents?serviceId=${value.id}`}>
+              View incident register
+            </Link>
+          </div>
+          {incidents.data?.content.length ? (
+            <div className="related-incidents">
+              {incidents.data.content.map((incident) => (
+                <Link key={incident.id} to={`/incidents/${incident.id}`}>
+                  <div>
+                    <strong>{incident.title}</strong>
+                    <small>{new Date(incident.detectedAt).toLocaleString()}</small>
+                  </div>
+                  <IncidentSeverityBadge severity={incident.severity} />
+                  <IncidentStatusBadge status={incident.status} />
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="history-empty">No incidents are linked to this service.</div>
           )}
         </section>
         {value.description && <section className="workspace-card service-description"><p className="eyebrow">Description</p><p>{value.description}</p></section>}

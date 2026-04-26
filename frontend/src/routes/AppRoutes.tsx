@@ -9,6 +9,9 @@ import { RegisterPage } from '../pages/RegisterPage'
 import { ServicesPage } from '../pages/ServicesPage'
 import { ServiceFormPage } from '../pages/ServiceFormPage'
 import { ServiceDetailsPage } from '../pages/ServiceDetailsPage'
+import { IncidentDetailsPage } from '../pages/IncidentDetailsPage'
+import { IncidentFormPage } from '../pages/IncidentFormPage'
+import { IncidentsPage } from '../pages/IncidentsPage'
 
 export function AppRoutes() {
   return (
@@ -23,6 +26,12 @@ export function AppRoutes() {
           <Route path="/services/new" element={<ServiceFormPage />} />
           <Route path="/services/:serviceId" element={<ServiceDetailsPage />} />
           <Route path="/services/:serviceId/edit" element={<ServiceFormPage />} />
+          <Route path="/incidents" element={<IncidentsPage />} />
+          <Route path="/incidents/new" element={<IncidentFormPage />} />
+          <Route
+            path="/incidents/:incidentId"
+            element={<IncidentDetailsPage />}
+          />
           <Route
             path="/organizations/:organizationId/settings"
             element={<OrganizationSettingsPage />}
