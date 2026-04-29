@@ -18,6 +18,8 @@ import com.pulseops.incident.dto.ResolveIncidentRequest;
 import com.pulseops.incident.dto.TimelineEventResponse;
 import com.pulseops.incident.dto.UpdateIncidentRequest;
 import com.pulseops.membership.MembershipStatus;
+import com.pulseops.liveevent.LiveEventPublisher;
+import com.pulseops.liveevent.LiveEventType;
 import com.pulseops.membership.OrganizationMembershipRepository;
 import com.pulseops.monitoredservice.MonitoredServiceRepository;
 import com.pulseops.organization.OrganizationAccessService;
@@ -40,6 +42,7 @@ public class IncidentManagementService {
 	private final MonitoredServiceRepository serviceRepository;
 	private final OrganizationMembershipRepository membershipRepository;
 	private final OrganizationAccessService accessService;
+	private final LiveEventPublisher liveEventPublisher;
 	private final Clock clock;
 
 	public IncidentManagementService(
@@ -49,6 +52,7 @@ public class IncidentManagementService {
 			MonitoredServiceRepository serviceRepository,
 			OrganizationMembershipRepository membershipRepository,
 			OrganizationAccessService accessService,
+			LiveEventPublisher liveEventPublisher,
 			Clock clock) {
 		this.incidentRepository = incidentRepository;
 		this.commentRepository = commentRepository;
@@ -56,6 +60,7 @@ public class IncidentManagementService {
 		this.serviceRepository = serviceRepository;
 		this.membershipRepository = membershipRepository;
 		this.accessService = accessService;
+		this.liveEventPublisher = liveEventPublisher;
 		this.clock = clock;
 	}
 
@@ -111,6 +116,7 @@ public class IncidentManagementService {
 				null,
 				IncidentStatus.OPEN.name(),
 				now);
+		publish(incident, LiveEventType.INCIDENT_CREATED);
 		return IncidentResponse.from(incident);
 	}
 
@@ -167,6 +173,7 @@ public class IncidentManagementService {
 					"Resolution summary updated.", incident.getResolutionSummary(), summary, now);
 		}
 		incident.updateDetails(title, description, rootCause, summary, now);
+		publish(incident, LiveEventType.INCIDENT_UPDATED);
 		return IncidentResponse.from(incident);
 	}
 
@@ -201,6 +208,7 @@ public class IncidentManagementService {
 				previous == null ? null : previous.toString(),
 				assignedUserId == null ? null : assignedUserId.toString(),
 				now);
+		publish(incident, LiveEventType.INCIDENT_UPDATED);
 		return IncidentResponse.from(incident);
 	}
 
@@ -217,6 +225,7 @@ public class IncidentManagementService {
 				incidentId, user.getId(), request.content().trim(), now));
 		event(incident, TimelineEventType.COMMENT_ADDED, user.getId(),
 				"Comment added.", null, comment.getId().toString(), now);
+		publish(incident, LiveEventType.INCIDENT_COMMENT_ADDED);
 		return IncidentCommentResponse.from(comment);
 	}
 
@@ -239,6 +248,7 @@ public class IncidentManagementService {
 				now);
 		event(incident, TimelineEventType.INCIDENT_RESOLVED, user.getId(),
 				"Incident resolved.", previous.name(), IncidentStatus.RESOLVED.name(), now);
+		publish(incident, LiveEventType.INCIDENT_UPDATED);
 		return IncidentResponse.from(incident);
 	}
 
@@ -261,6 +271,7 @@ public class IncidentManagementService {
 		event(incident, TimelineEventType.STATUS_CHANGED, user.getId(),
 				"Incident reopened.", IncidentStatus.RESOLVED.name(),
 				IncidentStatus.OPEN.name(), now);
+		publish(incident, LiveEventType.INCIDENT_UPDATED);
 		return IncidentResponse.from(incident);
 	}
 
@@ -341,6 +352,11 @@ public class IncidentManagementService {
 			Instant now) {
 		timelineRepository.save(IncidentTimelineEvent.create(
 				incident.getId(), type, actor, message, oldValue, newValue, now));
+	}
+
+	private void publish(Incident incident, LiveEventType type) {
+		liveEventPublisher.publish(
+				incident.getOrganizationId(), type, "incident", incident.getId());
 	}
 
 	private boolean allNull(UpdateIncidentRequest request) {

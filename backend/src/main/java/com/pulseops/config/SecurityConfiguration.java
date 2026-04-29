@@ -136,6 +136,7 @@ public class SecurityConfiguration {
 		configuration.setAllowedHeaders(java.util.List.of(
 				"Authorization",
 				"Content-Type",
+				"Last-Event-ID",
 				"X-Requested-With"));
 		configuration.setExposedHeaders(java.util.List.of("X-Trace-Id"));
 		configuration.setAllowCredentials(true);

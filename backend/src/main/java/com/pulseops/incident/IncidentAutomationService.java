@@ -4,6 +4,8 @@ import java.time.Instant;
 
 import com.pulseops.monitoredservice.MonitoredService;
 import com.pulseops.monitoredservice.ServiceStatus;
+import com.pulseops.liveevent.LiveEventPublisher;
+import com.pulseops.liveevent.LiveEventType;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -11,12 +13,15 @@ public class IncidentAutomationService {
 
 	private final IncidentRepository incidentRepository;
 	private final IncidentTimelineEventRepository timelineRepository;
+	private final LiveEventPublisher liveEventPublisher;
 
 	public IncidentAutomationService(
 			IncidentRepository incidentRepository,
-			IncidentTimelineEventRepository timelineRepository) {
+			IncidentTimelineEventRepository timelineRepository,
+			LiveEventPublisher liveEventPublisher) {
 		this.incidentRepository = incidentRepository;
 		this.timelineRepository = timelineRepository;
+		this.liveEventPublisher = liveEventPublisher;
 	}
 
 	public void onStatusTransition(
@@ -58,6 +63,11 @@ public class IncidentAutomationService {
 				null,
 				IncidentStatus.OPEN.name(),
 				now));
+		liveEventPublisher.publish(
+				service.getOrganizationId(),
+				LiveEventType.INCIDENT_CREATED,
+				"incident",
+				incident.getId());
 	}
 
 	private void recordRecovery(MonitoredService service, Instant now) {
@@ -83,6 +93,11 @@ public class IncidentAutomationService {
 							ServiceStatus.DOWN.name(),
 							service.getStatus().name(),
 							now));
+					liveEventPublisher.publish(
+							service.getOrganizationId(),
+							LiveEventType.INCIDENT_UPDATED,
+							"incident",
+							incident.getId());
 				});
 	}
 }

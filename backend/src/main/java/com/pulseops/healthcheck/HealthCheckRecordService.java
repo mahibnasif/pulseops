@@ -7,6 +7,8 @@ import java.util.UUID;
 
 import com.pulseops.common.exception.ApiException;
 import com.pulseops.incident.IncidentAutomationService;
+import com.pulseops.liveevent.LiveEventPublisher;
+import com.pulseops.liveevent.LiveEventType;
 import com.pulseops.monitoredservice.ManualCheckResult;
 import com.pulseops.monitoredservice.MonitoredServiceRepository;
 import org.springframework.http.HttpStatus;
@@ -19,16 +21,19 @@ public class HealthCheckRecordService {
 	private final MonitoredServiceRepository serviceRepository;
 	private final HealthCheckResultRepository resultRepository;
 	private final IncidentAutomationService incidentAutomationService;
+	private final LiveEventPublisher liveEventPublisher;
 	private final Clock clock;
 
 	public HealthCheckRecordService(
 			MonitoredServiceRepository serviceRepository,
 			HealthCheckResultRepository resultRepository,
 			IncidentAutomationService incidentAutomationService,
+			LiveEventPublisher liveEventPublisher,
 			Clock clock) {
 		this.serviceRepository = serviceRepository;
 		this.resultRepository = resultRepository;
 		this.incidentAutomationService = incidentAutomationService;
+		this.liveEventPublisher = liveEventPublisher;
 		this.clock = clock;
 	}
 
@@ -40,8 +45,11 @@ public class HealthCheckRecordService {
 		var now = Instant.now(clock);
 		var applied = service.applyCompletedCheck(result, now, false);
 		incidentAutomationService.onStatusTransition(service, before, applied, now);
-		return resultRepository.save(HealthCheckResult.create(
+		var saved = resultRepository.save(HealthCheckResult.create(
 				service, result, CheckSource.MANUAL, before, applied, now));
+		publishEvents(service.getOrganizationId(), serviceId, saved.getId(),
+				before, service.getStatus(), applied);
+		return saved;
 	}
 
 	@Transactional
@@ -57,8 +65,32 @@ public class HealthCheckRecordService {
 		var now = Instant.now(clock);
 		var applied = service.applyCompletedCheck(result, now, true);
 		incidentAutomationService.onStatusTransition(service, before, applied, now);
-		return Optional.of(resultRepository.save(HealthCheckResult.create(
-				service, result, CheckSource.SCHEDULED, before, applied, now)));
+		var saved = resultRepository.save(HealthCheckResult.create(
+				service, result, CheckSource.SCHEDULED, before, applied, now));
+		publishEvents(service.getOrganizationId(), serviceId, saved.getId(),
+				before, service.getStatus(), applied);
+		return Optional.of(saved);
+	}
+
+	private void publishEvents(
+			UUID organizationId,
+			UUID serviceId,
+			UUID resultId,
+			com.pulseops.monitoredservice.ServiceStatus before,
+			com.pulseops.monitoredservice.ServiceStatus after,
+			boolean applied) {
+		liveEventPublisher.publish(
+				organizationId,
+				LiveEventType.HEALTH_CHECK_RECORDED,
+				"healthCheck",
+				resultId);
+		if (applied && before != after) {
+			liveEventPublisher.publish(
+					organizationId,
+					LiveEventType.SERVICE_STATUS_CHANGED,
+					"service",
+					serviceId);
+		}
 	}
 
 	private ApiException serviceNotFound() {

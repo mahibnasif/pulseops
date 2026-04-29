@@ -10,6 +10,8 @@ import com.pulseops.common.exception.ApiException;
 import com.pulseops.common.response.PageResponse;
 import com.pulseops.healthcheck.HealthCheckExecutionService;
 import com.pulseops.healthcheck.dto.HealthCheckResponse;
+import com.pulseops.liveevent.LiveEventPublisher;
+import com.pulseops.liveevent.LiveEventType;
 import com.pulseops.monitoredservice.dto.CreateServiceRequest;
 import com.pulseops.monitoredservice.dto.ServiceResponse;
 import com.pulseops.monitoredservice.dto.UpdateServiceRequest;
@@ -32,6 +34,7 @@ public class ServiceManagementService {
 	private final OrganizationAccessService accessService;
 	private final TargetUrlValidator targetUrlValidator;
 	private final HealthCheckExecutionService healthCheckExecutionService;
+	private final LiveEventPublisher liveEventPublisher;
 	private final Clock clock;
 
 	public ServiceManagementService(
@@ -39,11 +42,13 @@ public class ServiceManagementService {
 			OrganizationAccessService accessService,
 			TargetUrlValidator targetUrlValidator,
 			HealthCheckExecutionService healthCheckExecutionService,
+			LiveEventPublisher liveEventPublisher,
 			Clock clock) {
 		this.serviceRepository = serviceRepository;
 		this.accessService = accessService;
 		this.targetUrlValidator = targetUrlValidator;
 		this.healthCheckExecutionService = healthCheckExecutionService;
+		this.liveEventPublisher = liveEventPublisher;
 		this.clock = clock;
 	}
 
@@ -84,7 +89,10 @@ public class ServiceManagementService {
 				configuration,
 				Instant.now(clock));
 		try {
-			return ServiceResponse.from(serviceRepository.saveAndFlush(service));
+			serviceRepository.saveAndFlush(service);
+			liveEventPublisher.publish(
+					organizationId, LiveEventType.SERVICE_CREATED, "service", service.getId());
+			return ServiceResponse.from(service);
 		}
 		catch (DataIntegrityViolationException exception) {
 			throw nameConflict();
@@ -110,6 +118,8 @@ public class ServiceManagementService {
 		service.update(configuration, Instant.now(clock));
 		try {
 			serviceRepository.flush();
+			liveEventPublisher.publish(
+					organizationId, LiveEventType.SERVICE_UPDATED, "service", serviceId);
 			return ServiceResponse.from(service);
 		}
 		catch (DataIntegrityViolationException exception) {
@@ -121,6 +131,8 @@ public class ServiceManagementService {
 	public void delete(User user, UUID organizationId, UUID serviceId) {
 		accessService.requireAdmin(organizationId, user.getId());
 		requireService(organizationId, serviceId).delete(Instant.now(clock));
+		liveEventPublisher.publish(
+				organizationId, LiveEventType.SERVICE_DELETED, "service", serviceId);
 	}
 
 	@Transactional
@@ -134,6 +146,11 @@ public class ServiceManagementService {
 					"The service is already paused.");
 		}
 		service.pause(Instant.now(clock));
+		liveEventPublisher.publish(
+				organizationId,
+				LiveEventType.SERVICE_STATUS_CHANGED,
+				"service",
+				serviceId);
 		return ServiceResponse.from(service);
 	}
 
@@ -148,6 +165,11 @@ public class ServiceManagementService {
 					"The service is already active.");
 		}
 		service.resume(Instant.now(clock));
+		liveEventPublisher.publish(
+				organizationId,
+				LiveEventType.SERVICE_STATUS_CHANGED,
+				"service",
+				serviceId);
 		return ServiceResponse.from(service);
 	}
 
