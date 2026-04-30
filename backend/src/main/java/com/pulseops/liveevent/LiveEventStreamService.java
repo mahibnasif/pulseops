@@ -31,8 +31,6 @@ public class LiveEventStreamService {
 	}
 
 	public SseEmitter subscribe(UUID organizationId, Instant accessTokenExpiresAt) {
-		var organizationConnections = connections.computeIfAbsent(
-				organizationId, ignored -> new ConcurrentHashMap<>());
 		var connectionId = UUID.randomUUID();
 		var remainingTokenLifetime = accessTokenExpiresAt == null
 				? CONNECTION_TIMEOUT_MILLISECONDS
@@ -41,7 +39,10 @@ public class LiveEventStreamService {
 				1000L,
 				Math.min(CONNECTION_TIMEOUT_MILLISECONDS, remainingTokenLifetime));
 		var emitter = new SseEmitter(timeout);
-		synchronized (organizationConnections) {
+		connections.compute(organizationId, (ignored, existingConnections) -> {
+			var organizationConnections = existingConnections == null
+					? new ConcurrentHashMap<UUID, SseEmitter>()
+					: existingConnections;
 			if (organizationConnections.size() >= MAX_CONNECTIONS_PER_ORGANIZATION) {
 				throw new ApiException(
 						HttpStatus.TOO_MANY_REQUESTS,
@@ -49,7 +50,8 @@ public class LiveEventStreamService {
 						"The organization has too many active live connections.");
 			}
 			organizationConnections.put(connectionId, emitter);
-		}
+			return organizationConnections;
+		});
 		Runnable cleanup = () -> remove(organizationId, connectionId);
 		emitter.onCompletion(cleanup);
 		emitter.onTimeout(cleanup);
@@ -138,13 +140,9 @@ public class LiveEventStreamService {
 	}
 
 	private void remove(UUID organizationId, UUID connectionId) {
-		var organizationConnections = connections.get(organizationId);
-		if (organizationConnections == null) {
-			return;
-		}
-		organizationConnections.remove(connectionId);
-		if (organizationConnections.isEmpty()) {
-			connections.remove(organizationId, organizationConnections);
-		}
+		connections.computeIfPresent(organizationId, (ignored, organizationConnections) -> {
+			organizationConnections.remove(connectionId);
+			return organizationConnections.isEmpty() ? null : organizationConnections;
+		});
 	}
 }
