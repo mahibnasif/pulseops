@@ -46,6 +46,13 @@ and repeat the CSRF/CORS threat-model review before production deployment.
 Login failures use the same response for an unknown email and a wrong password.
 Password hashes never cross the DTO boundary.
 
+Live streams use the same bearer JWT validation and active organization
+membership checks as REST endpoints. The SPA opens them with streaming
+`fetch`, because browser `EventSource` cannot attach the authorization header.
+Access tokens therefore remain in memory and never appear in event-stream
+URLs, logs, or browser history. A `401` triggers the existing refresh-cookie
+rotation flow before reconnecting.
+
 ## SSRF policy
 
 The HTTP checker used by manual and scheduled monitoring:

@@ -19,6 +19,7 @@
 /api/v1/organizations/{organizationId}/members
 /api/v1/organizations/{organizationId}/services
 /api/v1/organizations/{organizationId}/incidents
+/api/v1/organizations/{organizationId}/events
 /api/v1/organizations/{organizationId}/analytics
 /api/v1/organizations/{organizationId}/audit-logs
 /api/v1/notifications
@@ -26,6 +27,17 @@
 
 OpenAPI JSON is served at `/v3/api-docs`; Swagger UI is served at
 `/swagger-ui.html`.
+
+## Live event endpoint
+
+| Method | Path | Required access | Purpose |
+|---|---|---|---|
+| `GET` | `/api/v1/organizations/{id}/events` | Active member | Open an organization-scoped SSE stream |
+
+The request uses the normal bearer JWT and accepts both `text/event-stream` and
+`application/json`, allowing standard API errors before streaming begins.
+Successful streams set `Cache-Control: no-store` and `X-Accel-Buffering: no`.
+See [live-events.md](live-events.md) for the event envelope and reconnect model.
 
 ## Authentication endpoints
 

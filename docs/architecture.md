@@ -26,9 +26,10 @@ This preserves boundaries without network calls or distributed transactions.
 
 ## Runtime responsibilities
 
-The React SPA issues versioned REST commands and queries. Server-sent events
-will notify the client that organization-scoped data changed; TanStack Query
-will then refresh authoritative state.
+The React SPA issues versioned REST commands and queries. An authenticated
+server-sent event stream notifies the client that organization-scoped data
+changed; TanStack Query then refreshes authoritative state. Events are
+invalidation hints rather than a second source of truth.
 
 PostgreSQL is the system of record. Flyway owns schema changes. The monitoring
 scheduler claims due service rows in bounded batches, performs checks outside
@@ -53,6 +54,12 @@ incident to `MONITORING` and appends a recovery event without silently
 resolving it. Manual and automatic incidents share the same tenant-safe
 assignment, comments, lifecycle, resolution, and append-only timeline
 services.
+
+Phase 7 adds the `liveevent` module. Application services publish lightweight
+organization events inside their transactions. A transaction listener
+broadcasts only after commit, preventing clients from racing uncommitted data.
+The in-memory stream registry isolates connections by organization, sends
+heartbeats, and removes completed or failed emitters.
 
 ## Authentication flow
 

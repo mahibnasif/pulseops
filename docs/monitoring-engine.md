@@ -58,9 +58,9 @@ duplicates.
 
 When a down service reaches its recovery threshold, the automatic incident
 moves to `MONITORING` and records a `SERVICE_RECOVERED` timeline event. A human
-still documents the resolution and closes the incident. Later phases will
-persist notifications and publish organization-scoped live events for these
-changes.
+still documents the resolution and closes the incident. Committed health
+results and status transitions now publish organization-scoped live-event
+hints. A later phase will persist notifications for these changes.
 
 ## Availability
 

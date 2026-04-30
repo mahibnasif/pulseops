@@ -26,3 +26,11 @@ multi-AZ where budget permits, task autoscaling, log retention, and rollback
 procedures. `JWT_SECRET` must come from AWS Secrets Manager or an equivalent
 managed store, and `REFRESH_COOKIE_SECURE` must be enabled. Deployment must
 never proceed after failed tests.
+
+The reverse proxy must disable response buffering for
+`/api/v1/organizations/*/events` and allow long-lived responses. The backend
+also returns `X-Accel-Buffering: no` and sends a keep-alive comment every 15
+seconds by default. The Phase 7 broker is instance-local; horizontal scaling
+requires either sticky routing for the full stream and event producer or,
+preferably, a shared pub/sub adapter so every task can fan out committed
+events.

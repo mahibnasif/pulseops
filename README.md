@@ -4,9 +4,9 @@ PulseOps is a cloud-based service monitoring and incident-management platform
 that checks application health, detects confirmed outages, alerts engineering
 teams, and tracks incidents through resolution.
 
-> Project status: Phase 6 (Incidents) is implemented. Notifications, real-time
-> events, and analytics remain planned milestones and are not represented as
-> completed features.
+> Project status: Phase 7 (Real-Time Updates) is implemented. Notifications and
+> analytics remain planned milestones and are not represented as completed
+> features.
 
 ## Architecture
 
@@ -74,13 +74,16 @@ lifecycle and authorization model.
 - Incident filtering, manual declaration, assignment, comments, and timeline
 - Role-aware incident workflow, resolution documentation, and reopening
 - Service-linked incident history in the response workspace
+- Authenticated, organization-scoped server-sent event streams
+- Live dashboard, service, health-check, incident, and comment refreshes
+- Event deduplication, session refresh, connection state, and exponential reconnects
 
 ## Planned MVP
 
-The remaining MVP will add in-app notifications, server-sent events, and basic
-reliability analytics. See [docs/api.md](docs/api.md),
+The remaining MVP will add in-app notifications and basic reliability
+analytics. See [docs/api.md](docs/api.md),
 [docs/incidents.md](docs/incidents.md), and
-[docs/monitoring-engine.md](docs/monitoring-engine.md).
+[docs/live-events.md](docs/live-events.md).
 
 ## Prerequisites
 
@@ -146,6 +149,7 @@ docker compose down --volumes
 | `MONITORING_POLL_INTERVAL_MILLISECONDS` | `5000` | Delay between due-service claim batches |
 | `MONITORING_BATCH_SIZE` | `10` | Maximum services claimed per scheduler pass |
 | `MONITORING_CLAIM_LEASE_SECONDS` | `120` | Time before an unfinished claim can be recovered |
+| `LIVE_EVENT_HEARTBEAT_MILLISECONDS` | `15000` | Interval between SSE keep-alive comments |
 
 The setup script creates an ignored `.env` and generates a 256-bit JWT key.
 Production secrets must come from a managed secret store, never committed files.
@@ -216,7 +220,11 @@ progress.
   are scheduled for later security/integration work.
 - Default Compose credentials are for local development only.
 - Email and live events are not implemented.
-- Incident notifications and external delivery are not implemented yet.
+- Incident notifications and external delivery are not implemented yet. The
+  live-event protocol reserves `NOTIFICATION_CREATED` for that phase.
+- The live-event broker is in memory and reaches clients connected to the same
+  backend instance. A shared broker or load-balancer affinity is required
+  before horizontally scaling the backend.
 - The scheduler processes a bounded batch sequentially per application
   instance. Database claims support multiple instances, but higher-throughput
   worker pools are deferred until measurements justify them.

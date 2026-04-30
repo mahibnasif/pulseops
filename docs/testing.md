@@ -53,7 +53,12 @@ timeline behavior, the complete manual workflow, assignment validation,
 comments, resolution, reopening, viewer authorization, and cross-tenant
 isolation. Frontend tests cover the filtered register, engineer response
 controls, timeline rendering, and the viewer's read-only workspace. The
-current gate contains 25 backend tests and 15 frontend tests.
+Phase 7 integration tests cover JWT enforcement, membership isolation,
+post-commit SSE delivery, and service, health-check, incident, and comment
+events. Frontend coverage verifies authenticated headers, token-safe URLs,
+connection-state recovery, authoritative cache refresh, event deduplication,
+and cross-organization event rejection. The current gate contains 28 backend
+tests and 17 frontend tests.
 
 Coverage is used to find untested risk, not as a vanity target. Security and
 concurrency paths require explicit tests even if aggregate line coverage is
