@@ -38,7 +38,6 @@ export function IncidentDetailsPage() {
         incidentId!,
       ),
     enabled: Boolean(organizationId && incidentId),
-    refetchInterval: 10_000,
   })
   const service = useQuery({
     queryKey: ['service', organizationId, details.data?.incident.serviceId],

@@ -9,6 +9,7 @@ export interface AuthContextValue {
   accessToken: string | null
   login: (input: LoginInput) => Promise<void>
   register: (input: RegisterInput) => Promise<void>
+  refresh: () => Promise<string>
   logout: () => Promise<void>
 }
 

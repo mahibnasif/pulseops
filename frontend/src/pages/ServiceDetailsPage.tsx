@@ -22,14 +22,12 @@ export function ServiceDetailsPage() {
     queryKey: ['service', organizationId, serviceId],
     queryFn: () => serviceApi.getService(auth.accessToken!, organizationId!, serviceId!),
     enabled: Boolean(organizationId && serviceId),
-    refetchInterval: 10_000,
   })
   const checks = useQuery({
     queryKey: ['service-checks', organizationId, serviceId],
     queryFn: () =>
       serviceApi.listChecks(auth.accessToken!, organizationId!, serviceId!),
     enabled: Boolean(organizationId && serviceId),
-    refetchInterval: 10_000,
   })
   const incidents = useQuery({
     queryKey: ['incidents', organizationId, 'service', serviceId],
@@ -38,7 +36,6 @@ export function ServiceDetailsPage() {
         serviceId,
       }),
     enabled: Boolean(organizationId && serviceId),
-    refetchInterval: 10_000,
   })
   const canManage = currentOrganization?.currentUserRole === 'ADMIN'
   const canCheck = currentOrganization?.currentUserRole !== 'VIEWER'

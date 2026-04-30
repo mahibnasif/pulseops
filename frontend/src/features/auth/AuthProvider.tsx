@@ -77,6 +77,18 @@ export function AuthProvider({
         setSession(authenticatedSession)
         setStatus('authenticated')
       },
+      refresh: async () => {
+        try {
+          const refreshedSession = await authApi.refreshSession()
+          setSession(refreshedSession)
+          setStatus('authenticated')
+          return refreshedSession.accessToken
+        } catch (error) {
+          setSession(null)
+          setStatus('unauthenticated')
+          throw error
+        }
+      },
       logout: async () => {
         try {
           await authApi.logout()

@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../features/auth/useAuth'
 import { useOrganizations } from '../../features/organizations/useOrganizations'
+import { useLiveUpdates } from '../../features/live/useLiveUpdates'
 
 export function WorkspaceHeader() {
   const auth = useAuth()
   const organizations = useOrganizations()
   const navigate = useNavigate()
+  const liveUpdates = useLiveUpdates()
   const [signingOut, setSigningOut] = useState(false)
 
   async function signOut() {
@@ -43,6 +45,20 @@ export function WorkspaceHeader() {
         )}
       </nav>
       <div className="workspace-actions">
+        {organizations.currentOrganization && (
+          <span
+            className={`live-status live-status-${liveUpdates.status}`}
+            role="status"
+            title={
+              liveUpdates.lastEventAt
+                ? `Last live update ${new Date(liveUpdates.lastEventAt).toLocaleString()}`
+                : 'Organization live update connection'
+            }
+          >
+            <span aria-hidden="true" />
+            {liveLabel(liveUpdates.status)}
+          </span>
+        )}
         {organizations.organizations.length > 0 && (
           <label className="organization-picker">
             <span>Organization</span>
@@ -75,4 +91,17 @@ export function WorkspaceHeader() {
       </div>
     </header>
   )
+}
+
+function liveLabel(status: string) {
+  switch (status) {
+    case 'live':
+      return 'Live'
+    case 'offline':
+      return 'Offline'
+    case 'reconnecting':
+      return 'Reconnecting'
+    default:
+      return 'Connecting'
+  }
 }

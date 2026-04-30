@@ -6,6 +6,8 @@ import { WorkspaceHeader } from '../components/layout/WorkspaceHeader'
 import { useAuth } from '../features/auth/useAuth'
 import * as organizationApi from '../features/organizations/organizationApi'
 import { useOrganizations } from '../features/organizations/useOrganizations'
+import * as serviceApi from '../features/services/serviceApi'
+import * as incidentApi from '../features/incidents/incidentApi'
 
 export function DashboardPage() {
   const auth = useAuth()
@@ -15,10 +17,30 @@ export function DashboardPage() {
   const [description, setDescription] = useState('')
   const [formError, setFormError] = useState('')
   const accessToken = auth.accessToken!
+  const organizationId = organizations.currentOrganization?.id
 
   const pendingInvitations = useQuery({
     queryKey: ['invitations', 'pending'],
     queryFn: () => organizationApi.listPendingInvitations(accessToken),
+  })
+  const services = useQuery({
+    queryKey: ['services', organizationId, 'dashboard-total'],
+    queryFn: () => serviceApi.listServices(accessToken, organizationId!),
+    enabled: Boolean(organizationId),
+  })
+  const downServices = useQuery({
+    queryKey: ['services', organizationId, 'dashboard-down'],
+    queryFn: () =>
+      serviceApi.listServices(accessToken, organizationId!, { status: 'DOWN' }),
+    enabled: Boolean(organizationId),
+  })
+  const openIncidents = useQuery({
+    queryKey: ['incidents', organizationId, 'dashboard-open'],
+    queryFn: () =>
+      incidentApi.listIncidents(accessToken, organizationId!, {
+        status: 'OPEN',
+      }),
+    enabled: Boolean(organizationId),
   })
   const acceptInvitation = useMutation({
     mutationFn: (invitationId: string) =>
@@ -149,21 +171,21 @@ export function DashboardPage() {
             <section className="foundation-grid" aria-label="Workspace status">
               <article>
                 <span className="status-dot status-dot-green" />
-                <p>Tenant boundary</p>
-                <strong>Active</strong>
-                <small>Data access is scoped to {current.slug}.</small>
+                <p>Monitored services</p>
+                <strong>{services.data?.totalElements ?? '—'}</strong>
+                <small>Live inventory for {current.slug}.</small>
               </article>
               <article>
-                <span className="status-dot status-dot-blue" />
-                <p>Team access</p>
-                <strong>Role protected</strong>
-                <small>Admin, engineer, and viewer permissions are ready.</small>
+                <span className="status-dot status-dot-red" />
+                <p>Services down</p>
+                <strong>{downServices.data?.totalElements ?? '—'}</strong>
+                <small>Confirmed outages refresh automatically.</small>
               </article>
               <article>
                 <span className="status-dot status-dot-amber" />
-                <p>Monitoring</p>
-                <strong>Next phase</strong>
-                <small>Service registration arrives in Phase 4.</small>
+                <p>Open incidents</p>
+                <strong>{openIncidents.data?.totalElements ?? '—'}</strong>
+                <small>New incidents appear without a page reload.</small>
               </article>
             </section>
             <div className="workspace-columns">

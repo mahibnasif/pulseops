@@ -49,7 +49,6 @@ export function IncidentsPage() {
         assigneeId,
       }),
     enabled: Boolean(organizationId),
-    refetchInterval: 10_000,
   })
   const services = useQuery({
     queryKey: ['services', organizationId, 'incident-options'],
