@@ -61,6 +61,13 @@ broadcasts only after commit, preventing clients from racing uncommitted data.
 The in-memory stream registry isolates connections by organization, sends
 heartbeats, and removes completed or failed emitters.
 
+Phase 8 adds the `analytics` read module. It does not duplicate monitoring
+history into reporting tables at the current scale. Bounded, read-only
+PostgreSQL queries aggregate health-check and incident records into summary,
+percentile, time-series, severity, and per-service DTOs. The SPA lazy-loads
+Recharts only on the analytics route and TanStack Query refreshes the snapshot
+after relevant live events.
+
 ## Authentication flow
 
 The SPA sends credentials only to the authentication API. The backend verifies
@@ -81,8 +88,8 @@ The SPA loads all active memberships after authentication and stores only the
 selected organization ID in local storage. Organization details and roles are
 always refreshed from the API. Service queries accept the selected organization
 as context and independently enforce the same backend membership boundary.
-Future incidents, analytics, audit records, and live-event subscriptions must
-do the same.
+Incident, analytics, and live-event queries enforce that boundary as well;
+future audit records must do the same.
 
 ## Reliability boundaries
 

@@ -4,9 +4,8 @@ PulseOps is a cloud-based service monitoring and incident-management platform
 that checks application health, detects confirmed outages, alerts engineering
 teams, and tracks incidents through resolution.
 
-> Project status: Phase 7 (Real-Time Updates) is implemented. Notifications and
-> analytics remain planned milestones and are not represented as completed
-> features.
+> Project status: Phase 8 (Analytics) is implemented. Notifications remain a
+> planned milestone and are not represented as a completed feature.
 
 ## Architecture
 
@@ -77,13 +76,16 @@ lifecycle and authorization model.
 - Authenticated, organization-scoped server-sent event streams
 - Live dashboard, service, health-check, incident, and comment refreshes
 - Event deduplication, session refresh, connection state, and exponential reconnects
+- PostgreSQL-aggregated uptime, latency percentiles, and incident metrics
+- Responsive Recharts analytics with UTC presets and custom date ranges
+- Per-service reliability comparisons and live analytics invalidation
 
 ## Planned MVP
 
-The remaining MVP will add in-app notifications and basic reliability
-analytics. See [docs/api.md](docs/api.md),
+The remaining MVP will add in-app notifications and delivery architecture.
+See [docs/api.md](docs/api.md),
 [docs/incidents.md](docs/incidents.md), and
-[docs/live-events.md](docs/live-events.md).
+[docs/analytics.md](docs/analytics.md).
 
 ## Prerequisites
 
@@ -219,7 +221,7 @@ progress.
 - Password reset, email verification delivery, and authentication rate limiting
   are scheduled for later security/integration work.
 - Default Compose credentials are for local development only.
-- Email and live events are not implemented.
+- Email and in-app notifications are not implemented.
 - Incident notifications and external delivery are not implemented yet. The
   live-event protocol reserves `NOTIFICATION_CREATED` for that phase.
 - The live-event broker is in memory and reaches clients connected to the same
@@ -233,7 +235,8 @@ progress.
 - The current DNS preflight and HTTP connection are separate operations. Before
   accepting untrusted production targets, the checker must pin or revalidate
   the connected address to close the DNS-rebinding window.
-- Uptime metrics will be sampled estimates, not continuous SLA measurements.
+- Uptime metrics are sampled estimates, not continuous SLA measurements. The
+  exact calculation contract is documented in [docs/analytics.md](docs/analytics.md).
 - npm currently reports a React Router advisory affecting RSC action handling.
   PulseOps is a client-only SPA and does not use RSC or server actions; the
   exception is tracked in [docs/security.md](docs/security.md).

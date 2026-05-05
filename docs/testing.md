@@ -57,8 +57,13 @@ Phase 7 integration tests cover JWT enforcement, membership isolation,
 post-commit SSE delivery, and service, health-check, incident, and comment
 events. Frontend coverage verifies authenticated headers, token-safe URLs,
 connection-state recovery, authoritative cache refresh, event deduplication,
-and cross-organization event rejection. The current gate contains 28 backend
-tests and 17 frontend tests.
+and cross-organization event rejection.
+
+Phase 8 PostgreSQL integration coverage verifies sample uptime, averages, P50,
+P95, incident cohorts, severity groups, service rollups, null behavior,
+bounded-range validation, and tenant isolation. Frontend coverage verifies
+metric rendering, chart sections, preset date requests, and custom-range
+validation. The current gate contains 31 backend tests and 20 frontend tests.
 
 Coverage is used to find untested risk, not as a vanity target. Security and
 concurrency paths require explicit tests even if aggregate line coverage is

@@ -66,8 +66,9 @@ results are exposed. A UUID is an identifier, not an authorization mechanism.
 
 Organization and membership discovery collections are intentionally
 unpaginated because they are bounded team/workspace lists. Service and incident
-collections are paginated. Notification, analytics, and audit collections will
-be paginated when introduced.
+collections are paginated. Analytics returns bounded aggregate series rather
+than raw records. Notification and audit collections will be paginated when
+introduced.
 
 ## Organization endpoints
 
@@ -156,3 +157,26 @@ read-only.
 List filters include `status`, `severity`, `serviceId`, `assigneeId`, and
 case-insensitive title `search`. Resolution uses its dedicated endpoint so the
 required resolution summary and resolved timestamp remain consistent.
+
+## Analytics endpoint
+
+| Method | Path | Required access | Purpose |
+|---|---|---|---|
+| `GET` | `/api/v1/organizations/{id}/analytics` | Active member | Return an organization reliability snapshot |
+
+Optional `from` and `to` query parameters are ISO 8601 instants and describe a
+half-open UTC interval: `from` is inclusive and `to` is exclusive. Omitting
+them returns the latest 30 days. The range must be positive and no longer than
+366 days.
+
+The response includes:
+
+- current service status counts;
+- check totals, sample uptime, average response time, P50, and P95;
+- incident totals, active/critical counts, MTTA, MTTR, and longest duration;
+- hourly buckets for ranges up to 48 hours, otherwise daily buckets;
+- incident severity and trend series;
+- per-service reliability metrics.
+
+Metrics with no qualifying observations are `null`, not zero. See
+[analytics.md](analytics.md) for calculation and cohort semantics.
