@@ -38,6 +38,7 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
         'service-checks',
         'incidents',
         'incident',
+        'analytics',
         'dashboard-summary',
       ]
       await Promise.all(
@@ -158,10 +159,22 @@ function keysFor(event: OrganizationLiveEvent) {
     event.type.startsWith('SERVICE_') ||
     event.type === 'HEALTH_CHECK_RECORDED'
   ) {
-    return ['services', 'service', 'service-checks', 'dashboard-summary']
+    return [
+      'services',
+      'service',
+      'service-checks',
+      'analytics',
+      'dashboard-summary',
+    ]
   }
   if (event.type.startsWith('INCIDENT_')) {
-    return ['incidents', 'incident', 'services', 'dashboard-summary']
+    return [
+      'incidents',
+      'incident',
+      'services',
+      'analytics',
+      'dashboard-summary',
+    ]
   }
   return []
 }

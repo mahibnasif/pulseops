@@ -37,6 +37,9 @@ export function WorkspaceHeader() {
           <Link to="/incidents">Incidents</Link>
         )}
         {organizations.currentOrganization && (
+          <Link to="/analytics">Analytics</Link>
+        )}
+        {organizations.currentOrganization && (
           <Link
             to={`/organizations/${organizations.currentOrganization.id}/settings`}
           >

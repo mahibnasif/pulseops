@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { ProtectedRoute } from '../features/auth/ProtectedRoute'
 import { OrganizationRoute } from '../features/organizations/OrganizationRoute'
@@ -12,6 +13,12 @@ import { ServiceDetailsPage } from '../pages/ServiceDetailsPage'
 import { IncidentDetailsPage } from '../pages/IncidentDetailsPage'
 import { IncidentFormPage } from '../pages/IncidentFormPage'
 import { IncidentsPage } from '../pages/IncidentsPage'
+
+const AnalyticsPage = lazy(() =>
+  import('../pages/AnalyticsPage').then((module) => ({
+    default: module.AnalyticsPage,
+  })),
+)
 
 export function AppRoutes() {
   return (
@@ -28,6 +35,18 @@ export function AppRoutes() {
           <Route path="/services/:serviceId/edit" element={<ServiceFormPage />} />
           <Route path="/incidents" element={<IncidentsPage />} />
           <Route path="/incidents/new" element={<IncidentFormPage />} />
+          <Route
+            path="/analytics"
+            element={
+              <Suspense
+                fallback={
+                  <div className="loading-panel">Loading analytics…</div>
+                }
+              >
+                <AnalyticsPage />
+              </Suspense>
+            }
+          />
           <Route
             path="/incidents/:incidentId"
             element={<IncidentDetailsPage />}
