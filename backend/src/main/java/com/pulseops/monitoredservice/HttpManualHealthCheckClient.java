@@ -2,20 +2,22 @@ package com.pulseops.monitoredservice;
 
 import java.io.IOException;
 import java.net.ConnectException;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.net.http.HttpTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 
 import javax.net.ssl.SSLException;
 
 import tools.jackson.databind.json.JsonMapper;
 
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.classic.methods.HttpHead;
+import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
+import org.apache.hc.core5.util.Timeout;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -23,14 +25,14 @@ public class HttpManualHealthCheckClient implements ManualHealthCheckClient {
 
 	private static final int EXCERPT_CHARACTERS = 500;
 
-	private final HttpClient httpClient;
+	private final CloseableHttpClient httpClient;
 	private final TargetUrlValidator targetUrlValidator;
 	private final MonitoringProperties properties;
 	private final Clock clock;
 	private final JsonMapper jsonMapper;
 
 	public HttpManualHealthCheckClient(
-			HttpClient monitoringHttpClient,
+			CloseableHttpClient monitoringHttpClient,
 			TargetUrlValidator targetUrlValidator,
 			MonitoringProperties properties,
 			Clock clock) {
@@ -44,43 +46,41 @@ public class HttpManualHealthCheckClient implements ManualHealthCheckClient {
 	@Override
 	public ManualCheckResult check(MonitoredService service) {
 		var checkedAt = Instant.now(clock);
-		var uri = targetUrlValidator.validateForRequest(
+		var uri = targetUrlValidator.validateStructure(
 				service.getServiceType(),
 				service.getUrl());
-		var requestBuilder = HttpRequest.newBuilder(uri)
-				.timeout(Duration.ofMillis(service.getTimeoutMilliseconds()))
-				.header("User-Agent", "PulseOps/1.0");
-		var request = service.getHttpMethod() == HttpMethod.HEAD
-				? requestBuilder.method("HEAD", HttpRequest.BodyPublishers.noBody()).build()
-				: requestBuilder.GET().build();
+		HttpUriRequestBase request = service.getHttpMethod() == HttpMethod.HEAD
+				? new HttpHead(uri)
+				: new HttpGet(uri);
+		var timeout = Timeout.ofMilliseconds(service.getTimeoutMilliseconds());
+		request.setConfig(RequestConfig.custom()
+				.setConnectionRequestTimeout(timeout)
+				.setConnectTimeout(timeout)
+				.setResponseTimeout(timeout)
+				.build());
+		request.setHeader("User-Agent", "PulseOps/1.0");
 		var started = System.nanoTime();
 
 		try {
-			var response = httpClient.send(
-					request,
-					HttpResponse.BodyHandlers.ofInputStream());
-			var elapsed = elapsedMilliseconds(started);
-			byte[] bytes;
-			try (var input = response.body()) {
-				bytes = input.readNBytes(properties.maxResponseBytes() + 1);
-			}
-			var body = new String(
-					bytes,
-					0,
-					Math.min(bytes.length, properties.maxResponseBytes()),
-					StandardCharsets.UTF_8);
-			return evaluate(service, checkedAt, response.statusCode(), elapsed, body);
+			return httpClient.execute(request, response -> {
+				var elapsed = elapsedMilliseconds(started);
+				var entity = response.getEntity();
+				byte[] bytes = new byte[0];
+				if (entity != null) {
+					try (var input = entity.getContent()) {
+						bytes = input.readNBytes(properties.maxResponseBytes() + 1);
+					}
+				}
+				var body = new String(
+						bytes,
+						0,
+						Math.min(bytes.length, properties.maxResponseBytes()),
+						StandardCharsets.UTF_8);
+				return evaluate(service, checkedAt, response.getCode(), elapsed, body);
+			});
 		}
-		catch (HttpTimeoutException exception) {
+		catch (SocketTimeoutException exception) {
 			return failed(checkedAt, started, CheckErrorType.TIMEOUT, "The request timed out.");
-		}
-		catch (InterruptedException exception) {
-			Thread.currentThread().interrupt();
-			return failed(
-					checkedAt,
-					started,
-					CheckErrorType.NETWORK_ERROR,
-					"The request was interrupted.");
 		}
 		catch (IOException exception) {
 			return networkFailure(checkedAt, started, exception);
@@ -170,21 +170,23 @@ public class HttpManualHealthCheckClient implements ManualHealthCheckClient {
 			Instant checkedAt,
 			long started,
 			IOException exception) {
-		Throwable cause = exception;
-		while (cause.getCause() != null) {
-			cause = cause.getCause();
-		}
-		if (cause instanceof UnknownHostException) {
+		var unknownHost = findCause(exception, UnknownHostException.class);
+		if (unknownHost != null) {
+			if ("TARGET_ADDRESS_BLOCKED".equals(unknownHost.getMessage())) {
+				return failed(
+						checkedAt, started, CheckErrorType.NETWORK_ERROR,
+						"The target resolved to a prohibited network address.");
+			}
 			return failed(
 					checkedAt, started, CheckErrorType.DNS_FAILURE,
 					"The target hostname could not be resolved.");
 		}
-		if (cause instanceof SSLException) {
+		if (findCause(exception, SSLException.class) != null) {
 			return failed(
 					checkedAt, started, CheckErrorType.SSL_ERROR,
 					"The TLS connection could not be established.");
 		}
-		if (cause instanceof ConnectException) {
+		if (findCause(exception, ConnectException.class) != null) {
 			return failed(
 					checkedAt, started, CheckErrorType.CONNECTION_REFUSED,
 					"The target refused the connection.");
@@ -192,6 +194,17 @@ public class HttpManualHealthCheckClient implements ManualHealthCheckClient {
 		return failed(
 				checkedAt, started, CheckErrorType.NETWORK_ERROR,
 				"The network request could not be completed.");
+	}
+
+	private <T extends Throwable> T findCause(Throwable exception, Class<T> type) {
+		Throwable cause = exception;
+		while (cause != null) {
+			if (type.isInstance(cause)) {
+				return type.cast(cause);
+			}
+			cause = cause.getCause();
+		}
+		return null;
 	}
 
 	private ManualCheckResult failed(
