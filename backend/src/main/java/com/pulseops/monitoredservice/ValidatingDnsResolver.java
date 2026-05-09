@@ -5,6 +5,7 @@ import java.net.UnknownHostException;
 
 import com.pulseops.common.exception.ApiException;
 import org.apache.hc.client5.http.DnsResolver;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -13,6 +14,7 @@ public class ValidatingDnsResolver implements DnsResolver {
 	private final TargetAddressPolicy addressPolicy;
 	private final AddressLookup addressLookup;
 
+	@Autowired
 	public ValidatingDnsResolver(TargetAddressPolicy addressPolicy) {
 		this(addressPolicy, InetAddress::getAllByName);
 	}
