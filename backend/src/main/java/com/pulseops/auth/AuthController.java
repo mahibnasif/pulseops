@@ -4,6 +4,7 @@ import com.pulseops.auth.dto.AuthResponse;
 import com.pulseops.auth.dto.LoginRequest;
 import com.pulseops.auth.dto.RegisterRequest;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -22,25 +23,38 @@ public class AuthController {
 
 	private final AuthService authService;
 	private final AuthProperties properties;
+	private final AuthenticationRateLimiter rateLimiter;
 
-	public AuthController(AuthService authService, AuthProperties properties) {
+	public AuthController(
+			AuthService authService,
+			AuthProperties properties,
+			AuthenticationRateLimiter rateLimiter) {
 		this.authService = authService;
 		this.properties = properties;
+		this.rateLimiter = rateLimiter;
 	}
 
 	@PostMapping("/register")
-	ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
+	ResponseEntity<AuthResponse> register(
+			@Valid @RequestBody RegisterRequest request,
+			HttpServletRequest servletRequest) {
+		rateLimiter.checkRegistration(servletRequest);
 		return authenticatedResponse(authService.register(request), HttpStatus.CREATED);
 	}
 
 	@PostMapping("/login")
-	ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+	ResponseEntity<AuthResponse> login(
+			@Valid @RequestBody LoginRequest request,
+			HttpServletRequest servletRequest) {
+		rateLimiter.checkLogin(servletRequest, request.email());
 		return authenticatedResponse(authService.login(request), HttpStatus.OK);
 	}
 
 	@PostMapping("/refresh")
 	ResponseEntity<AuthResponse> refresh(
-			@CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshToken) {
+			@CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshToken,
+			HttpServletRequest servletRequest) {
+		rateLimiter.checkRefresh(servletRequest);
 		var session = authService.refresh(requireRefreshToken(refreshToken));
 		return authenticatedResponse(session, HttpStatus.OK);
 	}

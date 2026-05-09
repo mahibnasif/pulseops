@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import jakarta.servlet.http.HttpServletRequest;
+import com.pulseops.auth.AuthenticationRateLimitException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -33,12 +34,19 @@ public class ApiExceptionHandler {
 	ResponseEntity<ApiErrorResponse> handleApiException(
 			ApiException exception,
 			HttpServletRequest request) {
-		return response(
+		var response = response(
 				exception.getStatus(),
 				exception.getCode(),
 				exception.getMessage(),
 				Map.of(),
 				request);
+		if (exception instanceof AuthenticationRateLimitException rateLimit) {
+			return ResponseEntity.status(response.getStatusCode())
+					.headers(response.getHeaders())
+					.header(HttpHeaders.RETRY_AFTER, Long.toString(rateLimit.getRetryAfterSeconds()))
+					.body(response.getBody());
+		}
+		return response;
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
