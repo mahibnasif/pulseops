@@ -90,6 +90,21 @@ class IncidentApiIntegrationTests extends AbstractIntegrationTest {
 		accept(viewer, invite(owner, organizationId, viewer.email(), "VIEWER"));
 		var serviceId = createService(owner, organizationId, 3, 2);
 
+		mockMvc.perform(post(
+						"/api/v1/organizations/{org}/incidents",
+						organizationId)
+						.header(HttpHeaders.AUTHORIZATION, bearer(viewer.accessToken()))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "serviceId":"%s",
+								  "title":"Viewer cannot declare incidents",
+								  "severity":"LOW"
+								}
+								""".formatted(serviceId)))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("INSUFFICIENT_ORGANIZATION_ROLE"));
+
 		var created = mockMvc.perform(post(
 						"/api/v1/organizations/{org}/incidents",
 						organizationId)
@@ -190,7 +205,19 @@ class IncidentApiIntegrationTests extends AbstractIntegrationTest {
 		var outsider = register("outsider@example.com", "Outsider");
 		var organizationId = createOrganization(owner, "Platform");
 		var otherOrganizationId = createOrganization(outsider, "External");
+		var serviceId = createService(owner, organizationId, 3, 2);
 		var otherServiceId = createService(outsider, otherOrganizationId, 3, 2);
+		var created = mockMvc.perform(post(
+						"/api/v1/organizations/{org}/incidents",
+						organizationId)
+						.header(HttpHeaders.AUTHORIZATION, bearer(owner.accessToken()))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"serviceId":"%s","title":"Tenant scoped","severity":"HIGH"}
+								""".formatted(serviceId)))
+				.andExpect(status().isCreated())
+				.andReturn();
+		var incidentId = UUID.fromString(read(created, "$.id"));
 
 		mockMvc.perform(post(
 						"/api/v1/organizations/{org}/incidents",
@@ -209,6 +236,14 @@ class IncidentApiIntegrationTests extends AbstractIntegrationTest {
 						.header(HttpHeaders.AUTHORIZATION, bearer(outsider.accessToken())))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").value("ORGANIZATION_NOT_FOUND"));
+
+		mockMvc.perform(get(
+						"/api/v1/organizations/{org}/incidents/{incident}",
+						otherOrganizationId,
+						incidentId)
+						.header(HttpHeaders.AUTHORIZATION, bearer(outsider.accessToken())))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("INCIDENT_NOT_FOUND"));
 	}
 
 	private org.springframework.test.web.servlet.ResultActions check(

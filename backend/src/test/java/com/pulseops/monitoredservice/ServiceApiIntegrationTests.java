@@ -164,6 +164,23 @@ class ServiceApiIntegrationTests extends AbstractIntegrationTest {
 				.andReturn();
 		var serviceId = UUID.fromString(read(created, "$.id"));
 
+		createService(
+				engineer,
+				organizationId,
+				"Engineer cannot create",
+				"HTTPS",
+				"https://example.org")
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("INSUFFICIENT_ORGANIZATION_ROLE"));
+
+		mockMvc.perform(get(
+						"/api/v1/organizations/{org}/services/{service}",
+						organizationId,
+						serviceId)
+						.header(HttpHeaders.AUTHORIZATION, bearer(viewer.accessToken())))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(serviceId.toString()));
+
 		mockMvc.perform(patch(
 						"/api/v1/organizations/{org}/services/{service}",
 						organizationId,
@@ -210,6 +227,25 @@ class ServiceApiIntegrationTests extends AbstractIntegrationTest {
 						.header(HttpHeaders.AUTHORIZATION, bearer(outsider.accessToken())))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").value("ORGANIZATION_NOT_FOUND"));
+
+		var outsiderOrganizationId = createOrganization(outsider, "External");
+		var outsiderService = createService(
+				outsider,
+				outsiderOrganizationId,
+				"External API",
+				"HTTPS",
+				"https://example.net")
+				.andExpect(status().isCreated())
+				.andReturn();
+		var outsiderServiceId = UUID.fromString(read(outsiderService, "$.id"));
+
+		mockMvc.perform(get(
+						"/api/v1/organizations/{org}/services/{service}",
+						organizationId,
+						outsiderServiceId)
+						.header(HttpHeaders.AUTHORIZATION, bearer(owner.accessToken())))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("SERVICE_NOT_FOUND"));
 
 		assertThat(serviceRepository.findById(serviceId).orElseThrow().getLastCheckedAt())
 				.isEqualTo(Instant.parse("2026-07-30T12:00:00Z"));
