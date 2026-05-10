@@ -2,6 +2,11 @@ $ErrorActionPreference = 'Stop'
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
 
+& (Join-Path $PSScriptRoot 'check-secrets.ps1')
+if ($LASTEXITCODE -ne 0) {
+    throw "Tracked-file secret check failed with exit code $LASTEXITCODE."
+}
+
 Push-Location -LiteralPath (Join-Path $projectRoot 'backend')
 try {
     .\mvnw.cmd --batch-mode --no-transfer-progress verify
@@ -51,6 +56,9 @@ try {
             $randomNumberGenerator.Dispose()
         }
         $env:JWT_SECRET = [Convert]::ToBase64String($verificationKey)
+    }
+    if ([string]::IsNullOrWhiteSpace($env:POSTGRES_PASSWORD)) {
+        $env:POSTGRES_PASSWORD = [Guid]::NewGuid().ToString('N')
     }
 
     docker compose config --quiet

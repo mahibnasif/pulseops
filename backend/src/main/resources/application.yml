@@ -7,7 +7,7 @@ spring:
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/pulseops}
     username: ${DATABASE_USERNAME:pulseops}
-    password: ${DATABASE_PASSWORD:pulseops}
+    password: ${DATABASE_PASSWORD}
   flyway:
     enabled: true
   jpa:
@@ -35,6 +35,12 @@ management:
       probes:
         enabled: true
       show-details: never
+
+springdoc:
+  api-docs:
+    enabled: ${OPENAPI_ENABLED:true}
+  swagger-ui:
+    enabled: ${OPENAPI_ENABLED:true}
 
 pulseops:
   auth:

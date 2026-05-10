@@ -4,7 +4,7 @@ PulseOps is a cloud-based service monitoring and incident-management platform
 that checks application health, detects confirmed outages, alerts engineering
 teams, and tracks incidents through resolution.
 
-> Project status: Phase 8 (Analytics) is implemented. Notifications remain a
+> Project status: Phase 9 (Security Hardening) is implemented. Notifications remain a
 > planned milestone and are not represented as a completed feature.
 
 ## Architecture
@@ -79,6 +79,11 @@ lifecycle and authorization model.
 - PostgreSQL-aggregated uptime, latency percentiles, and incident metrics
 - Responsive Recharts analytics with UTC presets and custom date ranges
 - Per-service reliability comparisons and live analytics invalidation
+- Transport-pinned SSRF address validation with private/reserved range blocking
+- Authentication rate limits with bounded, privacy-preserving keys
+- Reviewed and integration-tested tenant and role access boundaries
+- Random local secret generation and tracked-file secret scanning in CI
+- Restrictive frontend browser security headers
 
 ## Planned MVP
 
@@ -102,7 +107,7 @@ Maven does not need to be installed globally. The repository includes
 Run from `D:\Code\vibing\pulseops` in Windows PowerShell:
 
 ```powershell
-.\scripts\setup.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 docker compose up --build
 ```
 
@@ -131,13 +136,13 @@ docker compose down --volumes
 |---|---|---|
 | `POSTGRES_DB` | `pulseops` | Local database name |
 | `POSTGRES_USER` | `pulseops` | Local database user |
-| `POSTGRES_PASSWORD` | `pulseops` | Local-only database password |
+| `POSTGRES_PASSWORD` | generated; required | Local database password |
 | `POSTGRES_PORT` | `5432` | Host PostgreSQL port |
 | `BACKEND_PORT` | `8080` | Host backend port |
 | `FRONTEND_PORT` | `5173` | Host frontend port |
 | `DATABASE_URL` | local JDBC URL | Direct backend JDBC URL |
 | `DATABASE_USERNAME` | `pulseops` | Direct backend database user |
-| `DATABASE_PASSWORD` | `pulseops` | Direct backend database password |
+| `DATABASE_PASSWORD` | none; required | Direct backend database password |
 | `JWT_SECRET` | none; required | Base64-encoded signing key of at least 256 bits |
 | `JWT_ISSUER` | `pulseops` | Required JWT issuer |
 | `JWT_AUDIENCE` | `pulseops-web` | Required JWT audience |
@@ -145,7 +150,17 @@ docker compose down --volumes
 | `JWT_REFRESH_TOKEN_TTL` | `30d` | Refresh-session lifetime |
 | `REFRESH_COOKIE_SECURE` | `false` in Compose | Require HTTPS for refresh cookie |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Credentialed browser origins |
-| `MONITORING_ALLOW_PRIVATE_TARGETS` | `true` in local Compose; `false` otherwise | Allow checks to private network destinations |
+| `OPENAPI_ENABLED` | `true` locally | Enable OpenAPI JSON and Swagger UI |
+| `AUTH_RATE_LIMIT_ENABLED` | `true` | Enable authentication endpoint throttling |
+| `AUTH_RATE_LIMIT_LOGIN_ATTEMPTS` | `10` | Login attempts per client and identity window |
+| `AUTH_RATE_LIMIT_LOGIN_WINDOW` | `5m` | Login rate-limit window |
+| `AUTH_RATE_LIMIT_REGISTRATION_ATTEMPTS` | `5` | Registrations per client window |
+| `AUTH_RATE_LIMIT_REGISTRATION_WINDOW` | `1h` | Registration rate-limit window |
+| `AUTH_RATE_LIMIT_REFRESH_ATTEMPTS` | `30` | Refresh attempts per client window |
+| `AUTH_RATE_LIMIT_REFRESH_WINDOW` | `5m` | Refresh rate-limit window |
+| `AUTH_RATE_LIMIT_MAX_TRACKED_KEYS` | `10000` | Bound for in-memory limiter keys |
+| `AUTH_RATE_LIMIT_TRUST_PROXY_CLIENT_IP` | `true` in Compose | Trust proxy-overwritten `X-Real-IP` |
+| `MONITORING_ALLOW_PRIVATE_TARGETS` | `false` | Allow checks to private network destinations |
 | `MONITORING_MAX_RESPONSE_BYTES` | `65536` | Maximum response bytes read by a manual check |
 | `MONITORING_SCHEDULER_ENABLED` | `true` | Enable the scheduled monitoring worker |
 | `MONITORING_POLL_INTERVAL_MILLISECONDS` | `5000` | Delay between due-service claim batches |
@@ -153,11 +168,12 @@ docker compose down --volumes
 | `MONITORING_CLAIM_LEASE_SECONDS` | `120` | Time before an unfinished claim can be recovered |
 | `LIVE_EVENT_HEARTBEAT_MILLISECONDS` | `15000` | Interval between SSE keep-alive comments |
 
-The setup script creates an ignored `.env` and generates a 256-bit JWT key.
+The setup script creates an ignored `.env` and independently generates a
+256-bit JWT key and random local database password.
 Production secrets must come from a managed secret store, never committed files.
 Production must set `REFRESH_COOKIE_SECURE=true` and
-`MONITORING_ALLOW_PRIVATE_TARGETS=false`. Local Compose deliberately enables
-private targets so the backend container can check the frontend container.
+`MONITORING_ALLOW_PRIVATE_TARGETS=false`. Only enable private targets
+temporarily when testing services on a controlled local Docker network.
 
 ## Run tests
 
@@ -182,7 +198,7 @@ Run the combined verification:
 
 ```powershell
 Set-Location -LiteralPath 'D:\Code\vibing\pulseops'
-.\scripts\verify.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1
 ```
 
 ## Database design
@@ -197,8 +213,10 @@ response timeline. See
 Registration, login, refresh, and logout are public API operations. All other
 application routes require a valid bearer JWT. Organization-scoped operations
 also require an active membership and the appropriate role. The manual checker
-rejects unsafe URL forms, disables redirects, validates resolved addresses,
-limits time and response size, and blocks private/reserved targets by default.
+rejects unsafe URL forms, disables redirects, pins validated DNS answers at
+connection time, limits time and response size, and blocks private/reserved
+targets by default. Authentication endpoints are rate limited, and tracked
+files are checked for common secret signatures in CI.
 See
 [docs/security.md](docs/security.md).
 
@@ -218,9 +236,7 @@ progress.
 
 - Invitation email delivery is not implemented; matching registered users see
   pending invitations in the application.
-- Password reset, email verification delivery, and authentication rate limiting
-  are scheduled for later security/integration work.
-- Default Compose credentials are for local development only.
+- Password reset and email verification delivery remain future work.
 - Email and in-app notifications are not implemented.
 - Incident notifications and external delivery are not implemented yet. The
   live-event protocol reserves `NOTIFICATION_CREATED` for that phase.
@@ -232,9 +248,8 @@ progress.
   worker pools are deferred until measurements justify them.
 - TCP and JSON API service types are reserved for later phases; Phase 4 accepts
   HTTP and HTTPS services only.
-- The current DNS preflight and HTTP connection are separate operations. Before
-  accepting untrusted production targets, the checker must pin or revalidate
-  the connected address to close the DNS-rebinding window.
+- Authentication rate limits are instance-local; horizontally scaled
+  deployments require shared or edge rate limiting.
 - Uptime metrics are sampled estimates, not continuous SLA measurements. The
   exact calculation contract is documented in [docs/analytics.md](docs/analytics.md).
 - npm currently reports a React Router advisory affecting RSC action handling.

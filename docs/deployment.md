@@ -25,7 +25,15 @@ Production needs TLS, automated Flyway execution, managed secrets, RDS backups,
 multi-AZ where budget permits, task autoscaling, log retention, and rollback
 procedures. `JWT_SECRET` must come from AWS Secrets Manager or an equivalent
 managed store, and `REFRESH_COOKIE_SECURE` must be enabled. Deployment must
-never proceed after failed tests.
+never proceed after failed tests. `OPENAPI_ENABLED` should be `false` unless
+documentation is intentionally published, and
+`MONITORING_ALLOW_PRIVATE_TARGETS` must remain `false`.
+
+When application-level rate limiting trusts a proxy client address, the load
+balancer must overwrite the selected header and security groups must prevent
+direct client access to ECS. Because Phase 9 counters are instance-local, a
+multi-task deployment must add a shared store or enforce equivalent limits at
+the edge.
 
 The reverse proxy must disable response buffering for
 `/api/v1/organizations/*/events` and allow long-lived responses. The backend
