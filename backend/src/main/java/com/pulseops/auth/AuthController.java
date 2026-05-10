@@ -3,6 +3,7 @@ package com.pulseops.auth;
 import com.pulseops.auth.dto.AuthResponse;
 import com.pulseops.auth.dto.LoginRequest;
 import com.pulseops.auth.dto.RegisterRequest;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;
@@ -25,6 +26,9 @@ public class AuthController {
 	private final AuthProperties properties;
 	private final AuthenticationRateLimiter rateLimiter;
 
+	@SuppressFBWarnings(
+			value = "EI_EXPOSE_REP2",
+			justification = "Spring owns the injected singleton service for the controller lifetime.")
 	public AuthController(
 			AuthService authService,
 			AuthProperties properties,
