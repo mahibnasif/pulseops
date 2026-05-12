@@ -1,6 +1,28 @@
 name: pulseops
 
 services:
+  demo-service:
+    profiles: ["demo"]
+    build:
+      context: ./demo-service
+    environment:
+      PORT: 8090
+    ports:
+      - "127.0.0.1:${DEMO_PORT:-8091}:8090"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8090/actuator/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
   postgres:
     image: postgres:17-alpine
     environment:
