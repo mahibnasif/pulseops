@@ -44,8 +44,7 @@ public interface MonitoredServiceRepository
 			  AND service.deletedAt IS NULL
 			  AND (:status IS NULL OR service.status = :status)
 			  AND (:active IS NULL OR service.active = :active)
-			  AND (:search IS NULL
-			       OR LOWER(service.name) LIKE LOWER(CONCAT('%', :search, '%')))
+			  AND LOWER(service.name) LIKE LOWER(CONCAT('%', :search, '%'))
 			""")
 	Page<MonitoredService> search(
 			@Param("organizationId") UUID organizationId,

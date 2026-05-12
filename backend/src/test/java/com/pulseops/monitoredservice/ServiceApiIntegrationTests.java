@@ -98,6 +98,12 @@ class ServiceApiIntegrationTests extends AbstractIntegrationTest {
 		var serviceId = UUID.fromString(read(created, "$.id"));
 
 		mockMvc.perform(get("/api/v1/organizations/{org}/services", organizationId)
+						.header(HttpHeaders.AUTHORIZATION, bearer(owner.accessToken())))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content.length()").value(1))
+				.andExpect(jsonPath("$.content[0].id").value(serviceId.toString()));
+
+		mockMvc.perform(get("/api/v1/organizations/{org}/services", organizationId)
 						.header(HttpHeaders.AUTHORIZATION, bearer(owner.accessToken()))
 						.param("search", "public")
 						.param("status", "UNKNOWN"))

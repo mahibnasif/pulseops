@@ -69,7 +69,7 @@ public class ServiceManagementService {
 				? Sort.Direction.DESC
 				: Sort.Direction.ASC;
 		var pageable = PageRequest.of(page, Math.min(size, 100), sortDirection, sortField);
-		var normalizedSearch = trimToNull(search);
+		var normalizedSearch = search == null ? "" : search.trim();
 		return PageResponse.from(serviceRepository
 				.search(organizationId, status, active, normalizedSearch, pageable)
 				.map(ServiceResponse::from));
