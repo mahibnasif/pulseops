@@ -32,6 +32,7 @@ jobs:
         application:
           - backend
           - frontend
+          - demo-service
 
     steps:
       - name: Check out repository
