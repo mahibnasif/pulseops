@@ -4,7 +4,7 @@ PulseOps is a cloud-based service monitoring and incident-management platform
 that checks application health, detects confirmed outages, alerts engineering
 teams, and tracks incidents through resolution.
 
-> Project status: Phase 9 (Security Hardening) is implemented. Notifications remain a
+> Project status: Phase 10 (Testing) is implemented. Notifications remain a
 > planned milestone and are not represented as a completed feature.
 
 ## Architecture
@@ -32,7 +32,7 @@ lifecycle and authorization model.
 - Frontend: React 19, TypeScript, Vite, React Router, TanStack Query, Recharts
 - Database: PostgreSQL 17
 - Testing: JUnit, Spring Boot Test, Testcontainers, Vitest, React Testing
-  Library
+  Library, Playwright, and a bounded Node.js load-smoke runner
 - Infrastructure: Docker, Docker Compose, GitHub Actions
 - Production target: Vercel, AWS ECS Fargate, and AWS RDS PostgreSQL
 
@@ -84,6 +84,9 @@ lifecycle and authorization model.
 - Reviewed and integration-tested tenant and role access boundaries
 - Random local secret generation and tracked-file secret scanning in CI
 - Restrictive frontend browser security headers
+- Deterministic healthy, failing, slow, flaky, and controlled demo endpoints
+- Isolated Playwright coverage for the registration-to-resolution MVP journey
+- Configurable latency and error-rate load-smoke thresholds
 
 ## Planned MVP
 
@@ -201,6 +204,24 @@ Set-Location -LiteralPath 'D:\Code\vibing\pulseops'
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1
 ```
 
+Run the isolated browser journey. This builds a separate Compose project,
+creates disposable database state, and removes it after the run:
+
+```powershell
+Set-Location -LiteralPath 'D:\Code\vibing\pulseops'
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\e2e.ps1 -InstallBrowsers
+```
+
+Run the bounded load smoke against a running backend:
+
+```powershell
+Set-Location -LiteralPath 'D:\Code\vibing\pulseops'
+node .\scripts\load-test.mjs
+```
+
+See [docs/testing.md](docs/testing.md) for failure-simulator routes, load
+settings, and the distinction between this smoke gate and capacity testing.
+
 ## Database design
 
 Flyway owns all schema changes. Hibernate validates mappings but never changes
@@ -228,9 +249,9 @@ for development, not production. See [docs/deployment.md](docs/deployment.md).
 
 ## Screenshots and demo
 
-Screenshots and a hosted demo are intentionally deferred until the MVP user
-journey exists. Publishing scaffold screenshots would misrepresent project
-progress.
+The deterministic local demo and browser journey are implemented. Screenshots
+and a hosted environment remain deferred until notifications and production
+deployment are complete.
 
 ## Known limitations
 
