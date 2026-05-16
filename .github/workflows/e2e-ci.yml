@@ -72,6 +72,15 @@ jobs:
           E2E_DEMO_URL: http://127.0.0.1:8191
         run: npm run test:e2e
 
+      - name: Run backend load smoke
+        env:
+          LOAD_BASE_URL: http://127.0.0.1:8180
+          LOAD_REQUESTS: "250"
+          LOAD_CONCURRENCY: "20"
+          LOAD_MAX_P95_MS: "1500"
+          LOAD_MAX_ERROR_RATE: "0.01"
+        run: node scripts/load-test.mjs
+
       - name: Capture container logs
         if: failure()
         run: docker compose --profile demo -p pulseops-e2e logs --no-color
