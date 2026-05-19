@@ -66,20 +66,36 @@ class AuthenticationRateLimiterTests {
 	}
 
 	@Test
-	void trustsAnOverwrittenProxyAddressHeaderOnlyWhenConfigured() {
+	void trustsTheRightmostProxyAddressAndIgnoresSpoofedPrefixes() {
 		var limiter = new AuthenticationRateLimiter(
 				properties(true, true),
 				new MutableClock(NOW));
 		var first = request("172.18.0.2");
-		first.addHeader("X-Real-IP", "198.51.100.10");
+		first.addHeader("X-Forwarded-For", "203.0.113.200, 198.51.100.10");
 		var second = request("172.18.0.3");
-		second.addHeader("X-Real-IP", "198.51.100.10");
+		second.addHeader("X-Forwarded-For", "203.0.113.201, 198.51.100.10");
 
 		limiter.checkRegistration(first);
 		limiter.checkRegistration(second);
 
 		assertThatThrownBy(() -> limiter.checkRegistration(second))
 				.isInstanceOf(AuthenticationRateLimitException.class);
+	}
+
+	@Test
+	void ignoresForwardedAddressesWhenProxyTrustIsDisabled() {
+		var limiter = new AuthenticationRateLimiter(
+				properties(true, false),
+				new MutableClock(NOW));
+		var first = request("198.51.100.20");
+		first.addHeader("X-Forwarded-For", "198.51.100.10");
+		var second = request("198.51.100.21");
+		second.addHeader("X-Forwarded-For", "198.51.100.10");
+
+		limiter.checkRegistration(first);
+		limiter.checkRegistration(second);
+
+		assertThatCode(() -> limiter.checkRegistration(second)).doesNotThrowAnyException();
 	}
 
 	@Test

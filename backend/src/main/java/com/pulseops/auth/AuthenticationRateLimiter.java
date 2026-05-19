@@ -18,7 +18,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class AuthenticationRateLimiter {
 
-	private static final String PROXY_CLIENT_IP_HEADER = "X-Real-IP";
+	private static final String FORWARDED_FOR_HEADER = "X-Forwarded-For";
+	private static final int MAX_FORWARDED_FOR_LENGTH = 512;
 	private static final int MAX_CLIENT_IP_LENGTH = 45;
 
 	private final AuthRateLimitProperties properties;
@@ -87,12 +88,20 @@ public class AuthenticationRateLimiter {
 	private String clientFingerprint(HttpServletRequest request) {
 		var address = request.getRemoteAddr();
 		if (properties.trustProxyClientIp()) {
-			var forwarded = normalizeAddressLiteral(request.getHeader(PROXY_CLIENT_IP_HEADER));
+			var forwarded = lastForwardedAddress(request.getHeader(FORWARDED_FOR_HEADER));
 			if (forwarded != null) {
 				address = forwarded;
 			}
 		}
 		return fingerprint(address == null ? "unknown" : address);
+	}
+
+	private String lastForwardedAddress(String value) {
+		if (value == null || value.isBlank() || value.length() > MAX_FORWARDED_FOR_LENGTH) {
+			return null;
+		}
+		var separator = value.lastIndexOf(',');
+		return normalizeAddressLiteral(value.substring(separator + 1).trim());
 	}
 
 	private String normalizeAddressLiteral(String value) {
