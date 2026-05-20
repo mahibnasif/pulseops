@@ -1,0 +1,16 @@
+aws_region        = "us-east-1"
+environment       = "production"
+domain_name       = "pulseops.example.com"
+route53_zone_id   = "Z0123456789EXAMPLE"
+jwt_secret_arn    = "arn:aws:secretsmanager:us-east-1:123456789012:secret:pulseops-production-jwt-example"
+
+# Cost-aware portfolio defaults. Raise both for stronger availability.
+nat_gateway_count = 1
+database_multi_az = false
+
+# Enable these protections after the first successful infrastructure apply.
+database_deletion_protection = true
+alb_deletion_protection      = true
+
+# The initial ECR bootstrap and release workflow replace this tag.
+image_tag = "bootstrap"
