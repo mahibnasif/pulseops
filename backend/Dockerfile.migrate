@@ -1,0 +1,29 @@
+ARG FLYWAY_VERSION=12.4.0
+ARG APP_VERSION=0.0.1
+ARG BUILD_DATE=unknown
+ARG SOURCE_URL=https://github.com/mahibnasif/pulseops
+ARG VCS_REF=unknown
+
+FROM flyway/flyway:${FLYWAY_VERSION}-alpine
+
+ARG APP_VERSION
+ARG BUILD_DATE
+ARG SOURCE_URL
+ARG VCS_REF
+
+LABEL org.opencontainers.image.title="PulseOps database migrations" \
+      org.opencontainers.image.description="Immutable Flyway migrations for PulseOps PostgreSQL" \
+      org.opencontainers.image.version="${APP_VERSION}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.source="${SOURCE_URL}"
+
+ENV FLYWAY_LOCATIONS=filesystem:/flyway/sql \
+    FLYWAY_CLEAN_DISABLED=true \
+    FLYWAY_VALIDATE_MIGRATION_NAMING=true
+
+COPY src/main/resources/db/migration/ /flyway/sql/
+
+USER 10001:10001
+
+CMD ["migrate"]

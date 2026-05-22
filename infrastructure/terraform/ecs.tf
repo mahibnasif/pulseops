@@ -249,6 +249,10 @@ resource "aws_ecs_task_definition" "migration" {
   execution_role_arn       = aws_iam_role.ecs_execution.arn
   task_role_arn            = aws_iam_role.application_task.arn
 
+  volume {
+    name = "tmp"
+  }
+
   container_definitions = jsonencode([{
     name      = "migration"
     image     = "${aws_ecr_repository.application["migration"].repository_url}:${var.image_tag}"
@@ -273,6 +277,11 @@ resource "aws_ecs_task_definition" "migration" {
         drop = ["ALL"]
       }
     }
+    mountPoints = [{
+      sourceVolume  = "tmp"
+      containerPath = "/tmp"
+      readOnly      = false
+    }]
     logConfiguration = {
       logDriver = "awslogs"
       options = {
