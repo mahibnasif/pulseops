@@ -1,0 +1,128 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Optional immutable image tag; defaults to the short commit SHA
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: pulseops-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build, migrate, and deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: production
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+      ECR_BACKEND_REPOSITORY: ${{ vars.ECR_BACKEND_REPOSITORY }}
+      ECR_FRONTEND_REPOSITORY: ${{ vars.ECR_FRONTEND_REPOSITORY }}
+      ECR_MIGRATION_REPOSITORY: ${{ vars.ECR_MIGRATION_REPOSITORY }}
+      ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+      ECS_BACKEND_SERVICE: ${{ vars.ECS_BACKEND_SERVICE }}
+      ECS_FRONTEND_SERVICE: ${{ vars.ECS_FRONTEND_SERVICE }}
+      ECS_MIGRATION_TASK_DEFINITION: ${{ vars.ECS_MIGRATION_TASK_DEFINITION }}
+      ECS_MIGRATION_SUBNETS: ${{ vars.ECS_MIGRATION_SUBNETS }}
+      ECS_MIGRATION_SECURITY_GROUP: ${{ vars.ECS_MIGRATION_SECURITY_GROUP }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Select immutable release tag
+        shell: pwsh
+        run: |
+          $tag = '${{ inputs.image_tag }}'.Trim()
+          if (-not $tag) {
+            $tag = $env:GITHUB_SHA.Substring(0, 12)
+          }
+          if ($tag -notmatch '^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$') {
+            throw "The image tag '$tag' is not a valid Docker tag."
+          }
+          "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Validate deployment configuration
+        shell: pwsh
+        run: |
+          @(
+            'AWS_REGION',
+            'AWS_ROLE_ARN',
+            'ECR_BACKEND_REPOSITORY',
+            'ECR_FRONTEND_REPOSITORY',
+            'ECR_MIGRATION_REPOSITORY',
+            'ECS_CLUSTER',
+            'ECS_BACKEND_SERVICE',
+            'ECS_FRONTEND_SERVICE',
+            'ECS_MIGRATION_TASK_DEFINITION',
+            'ECS_MIGRATION_SUBNETS',
+            'ECS_MIGRATION_SECURITY_GROUP'
+          ) | ForEach-Object {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_))) {
+              throw "Required production environment variable '$_' is missing."
+            }
+          }
+
+      - name: Configure short-lived AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          role-session-name: pulseops-${{ github.run_id }}
+
+      - name: Sign in to Amazon ECR
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          $registry = ($env:ECR_BACKEND_REPOSITORY -split '/')[0]
+          aws ecr get-login-password --region $env:AWS_REGION |
+            docker login --username AWS --password-stdin $registry
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push immutable release images
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          $created = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+          $source = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY"
+          $common = @(
+            '--build-arg', "APP_VERSION=$env:RELEASE_TAG",
+            '--build-arg', "BUILD_DATE=$created",
+            '--build-arg', "SOURCE_URL=$source",
+            '--build-arg', "VCS_REF=$env:GITHUB_SHA",
+            '--push'
+          )
+
+          docker buildx build @common `
+            --tag "$env:ECR_BACKEND_REPOSITORY`:$env:RELEASE_TAG" `
+            ./backend
+          docker buildx build @common `
+            --target production `
+            --tag "$env:ECR_FRONTEND_REPOSITORY`:$env:RELEASE_TAG" `
+            ./frontend
+          docker buildx build @common `
+            --file ./backend/Dockerfile.migrate `
+            --tag "$env:ECR_MIGRATION_REPOSITORY`:$env:RELEASE_TAG" `
+            ./backend
+
+      - name: Migrate database and roll out services
+        shell: pwsh
+        run: |
+          $env:BACKEND_IMAGE = "$env:ECR_BACKEND_REPOSITORY`:$env:RELEASE_TAG"
+          $env:FRONTEND_IMAGE = "$env:ECR_FRONTEND_REPOSITORY`:$env:RELEASE_TAG"
+          $env:MIGRATION_IMAGE = "$env:ECR_MIGRATION_REPOSITORY`:$env:RELEASE_TAG"
+          ./scripts/deploy-production.ps1

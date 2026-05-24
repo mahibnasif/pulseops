@@ -29,10 +29,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        application:
-          - backend
-          - frontend
-          - demo-service
+        include:
+          - application: backend
+            context: ./backend
+            dockerfile: ./backend/Dockerfile
+          - application: frontend
+            context: ./frontend
+            dockerfile: ./frontend/Dockerfile
+          - application: migration
+            context: ./backend
+            dockerfile: ./backend/Dockerfile.migrate
+          - application: demo-service
+            context: ./demo-service
+            dockerfile: ./demo-service/Dockerfile
 
     steps:
       - name: Check out repository
@@ -44,7 +53,8 @@ jobs:
       - name: Build ${{ matrix.application }} image
         uses: docker/build-push-action@v6
         with:
-          context: ./${{ matrix.application }}
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
           push: false
           cache-from: type=gha,scope=${{ matrix.application }}
           cache-to: type=gha,mode=max,scope=${{ matrix.application }}

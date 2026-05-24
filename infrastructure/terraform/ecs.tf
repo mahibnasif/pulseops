@@ -325,6 +325,10 @@ resource "aws_ecs_service" "frontend" {
   }
 
   depends_on = [aws_lb_listener.https]
+
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
 }
 
 resource "aws_ecs_service" "backend" {
@@ -359,4 +363,8 @@ resource "aws_ecs_service" "backend" {
   }
 
   depends_on = [aws_lb_listener_rule.api]
+
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
 }

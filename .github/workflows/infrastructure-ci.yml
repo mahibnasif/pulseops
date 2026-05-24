@@ -1,0 +1,51 @@
+name: Infrastructure CI
+
+on:
+  push:
+    paths:
+      - "infrastructure/**"
+      - ".github/workflows/infrastructure-ci.yml"
+  pull_request:
+    paths:
+      - "infrastructure/**"
+      - ".github/workflows/infrastructure-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infrastructure-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Check Terraform formatting
+        run: >-
+          docker run --rm
+          --volume "$PWD:/workspace"
+          --workdir /workspace/infrastructure/terraform
+          hashicorp/terraform:1.15.8
+          fmt -check -recursive
+
+      - name: Initialize Terraform without remote state
+        run: >-
+          docker run --rm
+          --volume "$PWD:/workspace"
+          --workdir /workspace/infrastructure/terraform
+          hashicorp/terraform:1.15.8
+          init -backend=false -input=false
+
+      - name: Validate Terraform configuration
+        run: >-
+          docker run --rm
+          --volume "$PWD:/workspace"
+          --workdir /workspace/infrastructure/terraform
+          hashicorp/terraform:1.15.8
+          validate
