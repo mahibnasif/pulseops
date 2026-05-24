@@ -63,6 +63,26 @@ variable "jwt_secret_arn" {
   }
 }
 
+variable "github_repository" {
+  description = "GitHub repository allowed to deploy through the protected production environment."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", var.github_repository))
+    error_message = "github_repository must use owner/repository format."
+  }
+}
+
+variable "github_oidc_provider_arn" {
+  description = "ARN of the account-level token.actions.githubusercontent.com IAM OIDC provider."
+  type        = string
+
+  validation {
+    condition     = can(regex("^arn:aws[a-z-]*:iam::[0-9]{12}:oidc-provider/token\\.actions\\.githubusercontent\\.com$", var.github_oidc_provider_arn))
+    error_message = "github_oidc_provider_arn must identify the GitHub Actions OIDC provider."
+  }
+}
+
 variable "frontend_desired_count" {
   description = "Number of frontend Fargate tasks."
   type        = number

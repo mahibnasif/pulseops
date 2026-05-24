@@ -40,6 +40,11 @@ output "migration_security_group_id" {
   value = aws_security_group.backend.id
 }
 
+output "github_deployment_role_arn" {
+  description = "Short-lived role assumed by the protected GitHub production environment."
+  value       = aws_iam_role.github_deployment.arn
+}
+
 output "alarm_topic_arn" {
   description = "Subscribe an operator endpoint to this SNS topic."
   value       = aws_sns_topic.alarms.arn
