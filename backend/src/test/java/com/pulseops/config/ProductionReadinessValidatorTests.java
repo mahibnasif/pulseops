@@ -92,12 +92,14 @@ class ProductionReadinessValidatorTests {
 			MonitoringProperties monitoring,
 			boolean openApiEnabled,
 			boolean migrationsEnabled) {
-		return new ProductionReadinessValidator(
+		var validator = new ProductionReadinessValidator(
 				auth,
 				rateLimit,
 				monitoring,
 				openApiEnabled,
 				migrationsEnabled);
+		validator.validate();
+		return validator;
 	}
 
 	private static AuthProperties auth(boolean secureCookie, String origin) {
