@@ -4,7 +4,7 @@ PulseOps is a cloud-based service monitoring and incident-management platform
 that checks application health, detects confirmed outages, alerts engineering
 teams, and tracks incidents through resolution.
 
-> Project status: Phase 10 (Testing) is implemented. Notifications remain a
+> Project status: Phase 11 (Deployment) is implemented. Notifications remain a
 > planned milestone and are not represented as a completed feature.
 
 ## Architecture
@@ -33,8 +33,9 @@ lifecycle and authorization model.
 - Database: PostgreSQL 17
 - Testing: JUnit, Spring Boot Test, Testcontainers, Vitest, React Testing
   Library, Playwright, and a bounded Node.js load-smoke runner
-- Infrastructure: Docker, Docker Compose, GitHub Actions
-- Production target: Vercel, AWS ECS Fargate, and AWS RDS PostgreSQL
+- Infrastructure: Docker, Docker Compose, GitHub Actions, and Terraform
+- Production target: AWS ALB, ECS Fargate, RDS PostgreSQL, ACM, Route 53,
+  CloudWatch, and Secrets Manager
 
 ## Implemented capabilities
 
@@ -87,6 +88,12 @@ lifecycle and authorization model.
 - Deterministic healthy, failing, slow, flaky, and controlled demo endpoints
 - Isolated Playwright coverage for the registration-to-resolution MVP journey
 - Configurable latency and error-rate load-smoke thresholds
+- Hardened, non-root production frontend, backend, and migration images
+- Two-AZ AWS network with private Fargate tasks and isolated PostgreSQL
+- ACM-managed HTTPS, Route 53 DNS, ALB path routing, and HTTP redirection
+- OIDC-based GitHub deployment without long-lived AWS access keys
+- Migration-gated ECS releases with immutable ECR tags and rollback protection
+- CloudWatch logs, dashboard, alarms, VPC flow logs, and ALB access logs
 
 ## Planned MVP
 
@@ -162,7 +169,7 @@ docker compose down --volumes
 | `AUTH_RATE_LIMIT_REFRESH_ATTEMPTS` | `30` | Refresh attempts per client window |
 | `AUTH_RATE_LIMIT_REFRESH_WINDOW` | `5m` | Refresh rate-limit window |
 | `AUTH_RATE_LIMIT_MAX_TRACKED_KEYS` | `10000` | Bound for in-memory limiter keys |
-| `AUTH_RATE_LIMIT_TRUST_PROXY_CLIENT_IP` | `true` in Compose | Trust proxy-overwritten `X-Real-IP` |
+| `AUTH_RATE_LIMIT_TRUST_PROXY_CLIENT_IP` | `true` in Compose | Trust the rightmost load-balancer-appended `X-Forwarded-For` address |
 | `MONITORING_ALLOW_PRIVATE_TARGETS` | `false` | Allow checks to private network destinations |
 | `MONITORING_MAX_RESPONSE_BYTES` | `65536` | Maximum response bytes read by a manual check |
 | `MONITORING_SCHEDULER_ENABLED` | `true` | Enable the scheduled monitoring worker |
@@ -177,6 +184,17 @@ Production secrets must come from a managed secret store, never committed files.
 Production must set `REFRESH_COOKIE_SECURE=true` and
 `MONITORING_ALLOW_PRIVATE_TARGETS=false`. Only enable private targets
 temporarily when testing services on a controlled local Docker network.
+
+## Production deployment
+
+The Phase 11 production target uses Terraform-managed AWS infrastructure and a
+protected, OIDC-authenticated GitHub Actions release workflow. Database
+migrations run as a one-off ECS task and must succeed before either application
+service is updated.
+
+See [docs/deployment.md](docs/deployment.md) for the architecture, prerequisites,
+bootstrap sequence, GitHub environment mapping, release process, monitoring,
+and recovery runbook.
 
 ## Run tests
 
