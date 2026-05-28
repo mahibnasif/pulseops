@@ -6,6 +6,15 @@ PulseOps monitors user-configured HTTP/HTTPS services and coordinates the
 incident response that follows a confirmed outage. It is multi-tenant:
 organizations own services, incidents, memberships, and analytics.
 
+```mermaid
+flowchart LR
+    Team["Engineering team"] -->|"HTTPS"| Web["React SPA"]
+    Web -->|"REST commands and queries"| API["Spring Boot modular monolith"]
+    Web <-->|"Authenticated SSE invalidation events"| API
+    API -->|"Reads and writes"| Database[("PostgreSQL")]
+    API -->|"Bounded HTTP checks"| Targets["Monitored HTTP and HTTPS services"]
+```
+
 ## Modular monolith
 
 The first production version is one Spring Boot deployment organized into:
@@ -68,6 +77,13 @@ percentile, time-series, severity, and per-service DTOs. The SPA lazy-loads
 Recharts only on the analytics route and TanStack Query refreshes the snapshot
 after relevant live events.
 
+Phase 9 hardens public boundaries. The checker rejects unsafe URL forms, pins a
+validated DNS address to the outbound transport, disables redirects, limits
+response size and time, and blocks private or reserved targets. Authentication
+rate limits use bounded, privacy-preserving keys. Production startup validation
+refuses insecure cookies, HTTP CORS origins, private targets, disabled limits,
+published OpenAPI, or runtime schema migration.
+
 ## Authentication flow
 
 The SPA sends credentials only to the authentication API. The backend verifies
@@ -98,10 +114,55 @@ future audit records must do the same.
 - A database claim lease prevents overlapping checks and survives worker loss.
 - Optimistic locking protects status counters.
 - A partial unique index prevents duplicate active automatic incidents.
-- Notification records are persisted before asynchronous delivery.
+- Refresh tokens are hashed, rotated, and revoked as token families.
+- Live events publish only after the surrounding database transaction commits.
 
 ## Production topology
 
-The target topology is a Vercel SPA, ECS Fargate tasks in private subnets, an
-Application Load Balancer, and RDS PostgreSQL. The backend needs controlled
-egress for health checks. RDS is never publicly reachable.
+```mermaid
+flowchart TB
+    GitHub["GitHub Actions"] -->|"OIDC assumes release role"| IAM["AWS IAM"]
+    GitHub -->|"Pushes immutable images"| ECR["Amazon ECR"]
+    User["Browser"] -->|"HTTPS"| Route53["Route 53"]
+    Route53 --> ALB["Application Load Balancer and ACM"]
+    ALB -->|"Static application"| Frontend["Frontend on ECS Fargate"]
+    ALB -->|"REST, SSE, readiness"| Backend["Backend on ECS Fargate"]
+    ECR --> Frontend
+    ECR --> Backend
+    ECR --> Migration["Flyway migration task"]
+    Backend -->|"JDBC"| RDS[("RDS PostgreSQL 17")]
+    Migration -->|"Forward migrations"| RDS
+    Backend -->|"HTTPS checks through NAT"| Targets["Monitored services"]
+    Backend --> CloudWatch["CloudWatch logs, metrics and alarms"]
+    ALB --> S3["Encrypted access logs"]
+```
+
+The ALB is the only public compute entry point. Frontend and backend Fargate
+tasks run without public IP addresses in two private application subnets. RDS
+runs in isolated database subnets and accepts PostgreSQL only from the backend
+security group. Outbound monitoring traffic crosses a NAT gateway and is
+observable through VPC flow logs.
+
+ACM terminates TLS at the ALB. HTTP redirects permanently to HTTPS. Listener
+rules send `/api/*` and readiness requests to the backend; other paths reach
+the Nginx-served SPA. The 75-second ALB idle timeout is longer than the
+15-second SSE heartbeat.
+
+The release workflow builds three immutable images, runs the Flyway task, and
+updates the backend and frontend only after migration succeeds. ECS deployment
+circuit breakers roll back unhealthy revisions. GitHub uses short-lived OIDC
+credentials scoped to the protected `production` environment rather than a
+stored AWS access key.
+
+## Deliberate boundaries
+
+- The backend remains one task because SSE subscribers and authentication rate
+  limits are currently in memory. Shared pub/sub and rate-limit state are
+  prerequisites for horizontal backend scaling.
+- The scheduler already uses database claims that permit multiple workers, but
+  checks run sequentially within each bounded batch until measurements justify
+  a worker pool.
+- Uptime is a sample-based estimate derived from recorded checks, not continuous
+  SLA measurement.
+- In-app and email notification delivery remain explicitly outside the current
+  MVP.
