@@ -1,5 +1,7 @@
 param(
-    [switch]$InstallBrowsers
+    [switch]$InstallBrowsers,
+    [switch]$KeepRunning,
+    [switch]$Stop
 )
 
 $ErrorActionPreference = 'Stop'
@@ -55,9 +57,19 @@ $env:CORS_ALLOWED_ORIGINS = 'http://127.0.0.1:5280'
 $env:E2E_BASE_URL = 'http://127.0.0.1:5280'
 $env:E2E_DEMO_URL = 'http://127.0.0.1:8291'
 $env:PORTFOLIO_SCREENSHOT_DIR = Join-Path $projectRoot 'docs\assets\screenshots'
+$captureCompleted = $false
 
 Push-Location -LiteralPath $projectRoot
 try {
+    if ($Stop) {
+        & $dockerCommand @dockerArguments down --volumes --remove-orphans
+        if ($LASTEXITCODE -ne 0) {
+            throw 'The isolated portfolio stack could not be stopped.'
+        }
+        Write-Host 'PulseOps portfolio stack stopped.' -ForegroundColor Green
+        return
+    }
+
     & $dockerCommand @dockerArguments up --build --detach --wait
     if ($LASTEXITCODE -ne 0) {
         throw 'The isolated portfolio stack failed to start.'
@@ -76,6 +88,7 @@ try {
         if ($LASTEXITCODE -ne 0) {
             throw 'Portfolio screenshot capture failed.'
         }
+        $captureCompleted = $true
     }
     finally {
         Pop-Location
@@ -86,8 +99,14 @@ catch {
     throw
 }
 finally {
-    & $dockerCommand @dockerArguments down --volumes --remove-orphans
+    if (-not $Stop -and (-not $KeepRunning -or -not $captureCompleted)) {
+        & $dockerCommand @dockerArguments down --volumes --remove-orphans
+    }
     Pop-Location
 }
 
 Write-Host 'PulseOps portfolio screenshots captured.' -ForegroundColor Green
+if ($KeepRunning) {
+    Write-Host 'Demo environment: http://127.0.0.1:5280' -ForegroundColor Cyan
+    Write-Host 'Stop it with: .\scripts\capture-portfolio.ps1 -Stop' -ForegroundColor Cyan
+}
