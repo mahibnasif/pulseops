@@ -40,12 +40,14 @@ while excluding it from active resource endpoints.
 A manual check performs one bounded request and evaluates the configured
 expectations. It persists the sample, updates the latest timestamps and
 consecutive counters, and applies the same status transition rules as scheduled
-checks. It does not create incidents; that begins in Phase 6.
+checks. A manual result that confirms the failure threshold can therefore open
+the same duplicate-safe automatic incident as a scheduled result.
 
-The application blocks private and reserved destinations by default. Local
-Compose enables private targets solely for container-to-container development
-checks. See [security.md](security.md) for the remaining DNS-rebinding
-production hardening requirement.
+The application blocks private and reserved destinations by default, including
+local Compose. Isolated E2E and portfolio scripts explicitly enable private
+targets only inside their disposable Docker networks. The checker pins the
+validated DNS address set to the outbound transport to close the
+validation/connect rebinding window. See [security.md](security.md).
 
 See [api.md](api.md), [database.md](database.md), and
 [monitoring-engine.md](monitoring-engine.md) for the HTTP contract, persistence

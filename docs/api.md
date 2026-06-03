@@ -21,12 +21,13 @@
 /api/v1/organizations/{organizationId}/incidents
 /api/v1/organizations/{organizationId}/events
 /api/v1/organizations/{organizationId}/analytics
-/api/v1/organizations/{organizationId}/audit-logs
-/api/v1/notifications
 ```
 
 OpenAPI JSON is served at `/v3/api-docs`; Swagger UI is served at
 `/swagger-ui.html`.
+
+Notification and audit endpoint groups are reserved for future modules and are
+not published by the current application.
 
 ## Live event endpoint
 

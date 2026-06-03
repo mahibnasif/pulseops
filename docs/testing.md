@@ -3,7 +3,7 @@
 ## Layers
 
 - Unit tests cover state transitions, authorization, validation, incident
-  rules, notification generation, and analytics formulas.
+  rules, production configuration, and analytics formulas.
 - Spring integration tests use PostgreSQL through Testcontainers for mappings,
   Flyway, repositories, security, and API flows.
 - Frontend component tests use Vitest, jsdom, and React Testing Library.
@@ -74,7 +74,7 @@ adds a PostgreSQL regression for unfiltered service listings, three
 failure-simulator tests, and one Playwright journey covering registration,
 organization creation, monitored-service setup, outage thresholds, automatic
 incident creation, assignment, response notes, recovery, and resolution. The
-current Maven gate executes 83 backend cases from 46 JUnit test methods, with
+current Maven gate executes 87 backend cases from 50 JUnit test methods, with
 20 frontend component tests plus the simulator and browser suites.
 
 Coverage is used to find untested risk, not as a vanity target. Security and

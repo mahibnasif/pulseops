@@ -207,6 +207,8 @@ node '.\scripts\load-test.mjs'
 The repository also contains independent backend, frontend, container,
 infrastructure, E2E, and security GitHub Actions workflows. See
 [docs/testing.md](docs/testing.md) for test boundaries and load-gate semantics.
+Frontend CI additionally fails on high-severity findings in the locked
+production dependency tree.
 
 ## Production deployment target
 

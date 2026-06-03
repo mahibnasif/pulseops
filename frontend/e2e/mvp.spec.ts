@@ -28,9 +28,11 @@ test('runs the monitored-service incident journey from registration to resolutio
   await expect(
     page.getByRole('heading', { name: 'Bring your team into PulseOps.' }),
   ).toBeVisible()
-  await page.getByLabel('Organization name').fill(`Phase 10 ${unique}`)
+  await page.getByLabel('Organization name').fill(`E2E Workspace ${unique}`)
   await page.getByRole('button', { name: 'Create organization' }).click()
-  await expect(page.getByRole('heading', { name: `Phase 10 ${unique}` })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: `E2E Workspace ${unique}` }),
+  ).toBeVisible()
 
   await page.getByRole('link', { name: 'Services' }).click()
   await page.getByRole('link', { name: 'Add service' }).click()

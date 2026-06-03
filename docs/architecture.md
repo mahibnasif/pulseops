@@ -20,13 +20,12 @@ flowchart LR
 The first production version is one Spring Boot deployment organized into:
 
 - `auth` and `user`
-- `organization` and `membership`
+- `organization`, `membership`, and `invitation`
 - `monitoredservice`
 - `healthcheck`
 - `incident`
-- `notification`
 - `analytics`
-- `audit`
+- `liveevent`
 - `common` and `config`
 
 Modules may call another module's application service or publish an internal
@@ -105,7 +104,7 @@ selected organization ID in local storage. Organization details and roles are
 always refreshed from the API. Service queries accept the selected organization
 as context and independently enforce the same backend membership boundary.
 Incident, analytics, and live-event queries enforce that boundary as well;
-future audit records must do the same.
+future tenant-owned modules must do the same.
 
 ## Reliability boundaries
 

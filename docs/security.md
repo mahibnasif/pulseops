@@ -121,12 +121,11 @@ The frontend proxy emits a restrictive content security policy, denies framing,
 disables MIME sniffing, avoids referrer disclosure, and disables unneeded
 browser permissions. HSTS belongs at the production TLS load balancer.
 
-## Dependency advisory record
+## Dependency review
 
-As of 2026-07-30, npm reports a high-severity React Router advisory for RSC
-action handling in all currently published affected releases. PulseOps uses a
-client-only Vite SPA and Spring REST APIs: it does not enable React Server
-Components, server actions, SSR, or React Router framework mode. The package is
-pinned to the current 7.x release and must be upgraded when an applicable
-patched release is available. CI should continue reporting dependency audits;
-this exception does not cover future use of the affected server features.
+Frontend CI audits the locked production dependency tree at high severity. An
+earlier React Router advisory affected server-action behavior that PulseOps did
+not use; the dependency has since been upgraded and the current production
+audit reports no known vulnerabilities. Any future server rendering, React
+Server Components, or framework-mode adoption requires a fresh threat and
+dependency review.

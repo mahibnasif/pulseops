@@ -10,8 +10,8 @@ one PostgreSQL database.
 
 ## Rationale
 
-The product needs strong transactions between service status, incidents,
-timeline events, and notifications. A modular monolith keeps those operations
+The product needs strong transactions between service status, incidents, and
+timeline events. A modular monolith keeps those operations
 understandable and deployable by a small team while preserving boundaries that
 can be extracted later if measured load or ownership requires it.
 

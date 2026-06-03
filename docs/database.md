@@ -21,7 +21,6 @@ erDiagram
     MONITORED_SERVICES ||--o{ INCIDENTS : triggers
     INCIDENTS ||--o{ INCIDENT_COMMENTS : contains
     INCIDENTS ||--o{ INCIDENT_TIMELINE_EVENTS : records
-    USERS ||--o{ NOTIFICATIONS : receives
 ```
 
 Phase 2 introduces `users` and `refresh_tokens`. User emails are normalized and

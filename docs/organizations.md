@@ -1,8 +1,8 @@
 # Organizations and memberships
 
 Organizations are PulseOps tenant boundaries. Services, incidents, analytics,
-notifications, and audit records added in later phases will be scoped through
-an organization membership.
+and live-event streams are scoped through an active organization membership.
+Future tenant-owned modules must use the same boundary.
 
 ## Roles
 
@@ -16,7 +16,7 @@ an organization membership.
 | Create, edit, pause, resume, or delete services | Yes | No | No |
 | Run a manual service check | Yes | Yes | No |
 | View monitored services | Yes | Yes | Yes |
-| Manage incidents | Yes | Yes in later phases | No |
+| Manage incidents | Yes | Yes | No |
 | View dashboards and analytics | Yes | Yes | Yes |
 
 Ownership is not a role. The owner always holds an active `ADMIN` membership,
