@@ -1,305 +1,291 @@
 # PulseOps
 
-PulseOps is a cloud-based service monitoring and incident-management platform
-that checks application health, detects confirmed outages, alerts engineering
-teams, and tracks incidents through resolution.
+**Production-style service monitoring and incident response for engineering
+teams.**
 
-> Project status: Phase 11 (Deployment) is implemented. Notifications remain a
-> planned milestone and are not represented as a completed feature.
+PulseOps registers HTTP and HTTPS endpoints, performs bounded scheduled health
+checks, confirms repeated failures, opens duplicate-safe incidents, streams
+live updates, and reports sampled reliability metrics.
+
+![PulseOps landing page](docs/assets/screenshots/landing.png)
+
+> **Portfolio status:** The monitoring and incident-response MVP, automated
+> tests, production containers, Terraform infrastructure, and deployment
+> workflow are implemented. The AWS target has been validated as code but has
+> not been applied to a public environment. Notification delivery remains
+> intentionally out of scope.
+
+[Product screenshots](docs/screenshots.md) ·
+[Architecture](docs/architecture.md) ·
+[API](docs/api.md) ·
+[Testing](docs/testing.md) ·
+[AWS deployment](docs/deployment.md) ·
+[Demo video script](docs/demo-video.md) ·
+[Resume and LinkedIn copy](docs/portfolio-copy.md)
+
+## What PulseOps demonstrates
+
+PulseOps is built as a realistic product rather than a CRUD demonstration. Its
+core workflow crosses authentication, tenant authorization, outbound networking,
+scheduled concurrency, transactional state transitions, real-time delivery,
+analytics, testing, containerization, and cloud infrastructure.
+
+1. A user registers and creates or joins an organization.
+2. An administrator configures an HTTP or HTTPS service and its expectations.
+3. A database-claimed worker runs scheduled checks without overlapping work.
+4. Failure and recovery thresholds protect against one-sample status changes.
+5. A confirmed outage opens one automatic incident for the active outage.
+6. Responders assign, investigate, comment, document, resolve, and reopen.
+7. Authenticated SSE events refresh organization-scoped client data after commit.
+8. PostgreSQL aggregates sampled uptime, latency, and incident performance.
+
+## Product walkthrough
+
+![PulseOps organization dashboard](docs/assets/screenshots/dashboard.png)
+
+The synthetic portfolio workspace contains four services so each supported
+state is visible.
+
+| Service monitoring | Incident response |
+|---|---|
+| ![Operational, degraded, down, and paused services](docs/assets/screenshots/services.png) | ![Critical monitoring-created incident](docs/assets/screenshots/incident-response.png) |
+
+| Health-check history | Reliability analytics |
+|---|---|
+| ![Service thresholds and persisted health checks](docs/assets/screenshots/service-details.png) | ![Sampled uptime and latency analytics](docs/assets/screenshots/analytics.png) |
+
+See [all screenshots and captions](docs/screenshots.md), including the responsive
+mobile workspace. Every image is captured from the real application against an
+isolated PostgreSQL database, not from a mockup.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    Browser[React SPA] -->|REST + SSE| API[Spring Boot modular monolith]
-    API --> DB[(PostgreSQL)]
-    API --> Targets[HTTP/HTTPS targets]
-    API --> Email[Email provider]
+    Browser["React + TypeScript SPA"] -->|"REST"| API["Spring Boot modular monolith"]
+    Browser <-->|"Authenticated SSE"| API
+    API -->|"JPA and analytics SQL"| Database[("PostgreSQL 17")]
+    Scheduler["Database-claimed scheduler"] --> API
+    API -->|"Transport-pinned checks"| Targets["HTTP and HTTPS targets"]
+    API -->|"Threshold crossed"| Incident["Incident workflow"]
+    Incident --> Database
 ```
 
-The application starts as a modular monolith. Domain modules will share one
-deployment and database while keeping clear package and service boundaries.
-This avoids distributed-system overhead before the product requires it.
+The application is a modular monolith: domain boundaries stay explicit without
+adding network calls or distributed transactions before the product needs them.
+PostgreSQL is the source of truth, including scheduled-work claims and
+cross-module consistency.
 
-See [docs/architecture.md](docs/architecture.md) for module boundaries and
-runtime flows, and [docs/services.md](docs/services.md) for the Phase 4 service
-lifecycle and authorization model.
+The production target places an ACM-backed Application Load Balancer in public
+subnets and the frontend, backend, migration task, and RDS database in private
+or isolated subnets. GitHub Actions assumes a repository-scoped AWS role through
+OIDC, pushes immutable images to ECR, runs Flyway, and updates ECS services only
+after migration succeeds.
 
-## Technology stack
+See [the architecture narrative and AWS topology](docs/architecture.md).
 
-- Backend: Java 21, Spring Boot 4.1, Spring MVC, Spring Data JPA, Spring
-  Security, Flyway, Actuator, Springdoc OpenAPI
-- Frontend: React 19, TypeScript, Vite, React Router, TanStack Query, Recharts
-- Database: PostgreSQL 17
-- Testing: JUnit, Spring Boot Test, Testcontainers, Vitest, React Testing
-  Library, Playwright, and a bounded Node.js load-smoke runner
-- Infrastructure: Docker, Docker Compose, GitHub Actions, and Terraform
-- Production target: AWS ALB, ECS Fargate, RDS PostgreSQL, ACM, Route 53,
-  CloudWatch, and Secrets Manager
+## Engineering decisions
 
-## Implemented capabilities
+| Area | Design |
+|---|---|
+| **Tenant security** | Every organization-scoped backend operation resolves an active membership and enforces `ADMIN`, `ENGINEER`, or `VIEWER`; the UI is not the security boundary. |
+| **Authentication** | BCrypt passwords, short-lived JWT access tokens, hashed rotating refresh-token families, replay response, secure cookie support, and bounded privacy-preserving rate limits. |
+| **SSRF defense** | URL policy validation, redirect rejection, private/reserved address blocking, DNS validation, transport-level address pinning, finite timeouts, and bounded response bodies. |
+| **Scheduler safety** | PostgreSQL row locks with `SKIP LOCKED`, bounded batches, expiring claim leases, network I/O outside long transactions, and optimistic status updates. |
+| **Outage behavior** | Separate failure and recovery thresholds, atomic status transitions, and a partial unique index preventing duplicate unresolved automatic incidents. |
+| **Live data** | Organization-scoped SSE messages publish after commit and invalidate TanStack Query state; events are hints, never a second source of truth. |
+| **Analytics** | Read-only PostgreSQL aggregation produces sampled uptime, P50/P95 latency, incident timing, time-series buckets, and per-service comparisons. |
+| **Release safety** | Non-root read-only containers, Secrets Manager injection, Flyway as a one-off task, immutable ECR tags, ECS health checks, deployment circuit breakers, and GitHub OIDC. |
 
-- Java and Node applications with reproducible dependency wrappers/lockfiles
-- PostgreSQL configuration through environment variables
-- Flyway-controlled schema history
-- PostgreSQL-backed integration testing with Testcontainers
-- Frontend unit test, type check, linter, and production build
-- OpenAPI JSON and Swagger UI
-- Health, readiness, and liveness endpoints
-- Multi-stage, non-root application containers
-- One-command local stack with health-gated startup
-- User registration and login with normalized email addresses
-- BCrypt password hashes and account status enforcement
-- Short-lived JWT access tokens with issuer and audience validation
-- Hashed, rotating refresh-token families with replay detection and revocation
-- HttpOnly, SameSite refresh cookies and in-memory frontend access tokens
-- Protected React routes, session restoration, and logout
-- Stable API error envelopes with safe authentication messages
-- Organization creation, discovery, settings, and persistent workspace switching
-- Active memberships with `ADMIN`, `ENGINEER`, and `VIEWER` roles
-- Backend-enforced tenant isolation and role authorization
-- Hashed organization invitation tokens with email-bound acceptance
-- Member role changes, removal, leave, and ownership-transfer workflows
-- Responsive organization onboarding and team administration UI
-- Organization-scoped HTTP/HTTPS service creation, editing, filtering,
-  pausing, resuming, and soft deletion
-- Role-aware service inventory, configuration form, and service details UI
-- Bounded on-demand HTTP checks with status, text, JSON, and latency validation
-- URL validation and private/reserved target blocking by default
-- Database-claimed scheduled monitoring with bounded batches and expiring leases
-- Persisted manual and scheduled health-check history
-- Consecutive failure/recovery thresholds with degraded-latency status
-- Responsive check-history and threshold-progress views
-- Automatic, duplicate-safe incident creation when a service enters `DOWN`
-- Incident filtering, manual declaration, assignment, comments, and timeline
-- Role-aware incident workflow, resolution documentation, and reopening
-- Service-linked incident history in the response workspace
-- Authenticated, organization-scoped server-sent event streams
-- Live dashboard, service, health-check, incident, and comment refreshes
-- Event deduplication, session refresh, connection state, and exponential reconnects
-- PostgreSQL-aggregated uptime, latency percentiles, and incident metrics
-- Responsive Recharts analytics with UTC presets and custom date ranges
-- Per-service reliability comparisons and live analytics invalidation
-- Transport-pinned SSRF address validation with private/reserved range blocking
-- Authentication rate limits with bounded, privacy-preserving keys
-- Reviewed and integration-tested tenant and role access boundaries
-- Random local secret generation and tracked-file secret scanning in CI
-- Restrictive frontend browser security headers
-- Deterministic healthy, failing, slow, flaky, and controlled demo endpoints
-- Isolated Playwright coverage for the registration-to-resolution MVP journey
-- Configurable latency and error-rate load-smoke thresholds
-- Hardened, non-root production frontend, backend, and migration images
-- Two-AZ AWS network with private Fargate tasks and isolated PostgreSQL
-- ACM-managed HTTPS, Route 53 DNS, ALB path routing, and HTTP redirection
-- OIDC-based GitHub deployment without long-lived AWS access keys
-- Migration-gated ECS releases with immutable ECR tags and rollback protection
-- CloudWatch logs, dashboard, alarms, VPC flow logs, and ALB access logs
+## Technology
 
-## Planned MVP
+| Layer | Technologies |
+|---|---|
+| Frontend | React 19, TypeScript 6, Vite 8, React Router, TanStack Query, Recharts, standard CSS |
+| Backend | Java 21, Spring Boot 4.1, Spring MVC, Spring Security, Spring Data JPA, Bean Validation, Actuator, Springdoc |
+| Data | PostgreSQL 17, Flyway 12 |
+| Testing | JUnit 5, Spring Boot Test, Mockito, Testcontainers, Vitest, React Testing Library, Playwright, SpotBugs |
+| Local runtime | Docker, Docker Compose, Nginx, deterministic demo service |
+| Delivery target | GitHub Actions, Terraform, AWS ECS Fargate, RDS, ALB, ACM, Route 53, ECR, Secrets Manager, CloudWatch, S3 |
 
-The remaining MVP will add in-app notifications and delivery architecture.
-See [docs/api.md](docs/api.md),
-[docs/incidents.md](docs/incidents.md), and
-[docs/analytics.md](docs/analytics.md).
+## Run locally
 
-## Prerequisites
+### Prerequisites
 
 - Git
 - Java 21
 - Node.js 24 and npm 11
-- Docker Desktop with Linux containers
+- Docker Desktop using Linux containers
 
-Maven does not need to be installed globally. The repository includes
-`backend\mvnw.cmd`.
+Maven does not need a global installation; the repository includes the Maven
+wrapper.
 
-## Local setup
+### Start the stack
 
-Run from `D:\Code\vibing\pulseops` in Windows PowerShell:
+Run from Windows PowerShell:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup.ps1
+Set-Location -LiteralPath 'D:\Code\vibing\pulseops'
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File '.\scripts\setup.ps1'
 docker compose up --build
 ```
 
-When all health checks pass:
+The setup script creates an ignored `.env` with an independently generated
+database password and 256-bit JWT key.
 
-- Frontend: <http://localhost:5173>
+Once health checks pass:
+
+- Application: <http://localhost:5173>
 - Backend health: <http://localhost:8080/actuator/health>
 - Swagger UI: <http://localhost:8080/swagger-ui.html>
 - OpenAPI JSON: <http://localhost:8080/v3/api-docs>
 
-Stop the stack without deleting database data:
+Stop without deleting local database data:
 
 ```powershell
 docker compose down
 ```
 
-Delete local database data only when a clean database is intentionally needed:
+Use `docker compose down --volumes` only when a clean local database is
+intentional.
+
+## Run the deterministic portfolio demo
+
+The portfolio script creates synthetic monitoring history and leaves an
+isolated environment ready for a walkthrough:
 
 ```powershell
-docker compose down --volumes
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File '.\scripts\capture-portfolio.ps1' `
+  -KeepRunning
 ```
 
-## Environment variables
+Open <http://127.0.0.1:5280>. Credentials and the recording sequence are in the
+[demo video package](docs/demo-video.md).
 
-| Variable | Local default | Purpose |
-|---|---|---|
-| `POSTGRES_DB` | `pulseops` | Local database name |
-| `POSTGRES_USER` | `pulseops` | Local database user |
-| `POSTGRES_PASSWORD` | generated; required | Local database password |
-| `POSTGRES_PORT` | `5432` | Host PostgreSQL port |
-| `BACKEND_PORT` | `8080` | Host backend port |
-| `FRONTEND_PORT` | `5173` | Host frontend port |
-| `DATABASE_URL` | local JDBC URL | Direct backend JDBC URL |
-| `DATABASE_USERNAME` | `pulseops` | Direct backend database user |
-| `DATABASE_PASSWORD` | none; required | Direct backend database password |
-| `JWT_SECRET` | none; required | Base64-encoded signing key of at least 256 bits |
-| `JWT_ISSUER` | `pulseops` | Required JWT issuer |
-| `JWT_AUDIENCE` | `pulseops-web` | Required JWT audience |
-| `JWT_ACCESS_TOKEN_TTL` | `15m` | Access-token lifetime |
-| `JWT_REFRESH_TOKEN_TTL` | `30d` | Refresh-session lifetime |
-| `REFRESH_COOKIE_SECURE` | `false` in Compose | Require HTTPS for refresh cookie |
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Credentialed browser origins |
-| `OPENAPI_ENABLED` | `true` locally | Enable OpenAPI JSON and Swagger UI |
-| `AUTH_RATE_LIMIT_ENABLED` | `true` | Enable authentication endpoint throttling |
-| `AUTH_RATE_LIMIT_LOGIN_ATTEMPTS` | `10` | Login attempts per client and identity window |
-| `AUTH_RATE_LIMIT_LOGIN_WINDOW` | `5m` | Login rate-limit window |
-| `AUTH_RATE_LIMIT_REGISTRATION_ATTEMPTS` | `5` | Registrations per client window |
-| `AUTH_RATE_LIMIT_REGISTRATION_WINDOW` | `1h` | Registration rate-limit window |
-| `AUTH_RATE_LIMIT_REFRESH_ATTEMPTS` | `30` | Refresh attempts per client window |
-| `AUTH_RATE_LIMIT_REFRESH_WINDOW` | `5m` | Refresh rate-limit window |
-| `AUTH_RATE_LIMIT_MAX_TRACKED_KEYS` | `10000` | Bound for in-memory limiter keys |
-| `AUTH_RATE_LIMIT_TRUST_PROXY_CLIENT_IP` | `true` in Compose | Trust the rightmost load-balancer-appended `X-Forwarded-For` address |
-| `MONITORING_ALLOW_PRIVATE_TARGETS` | `false` | Allow checks to private network destinations |
-| `MONITORING_MAX_RESPONSE_BYTES` | `65536` | Maximum response bytes read by a manual check |
-| `MONITORING_SCHEDULER_ENABLED` | `true` | Enable the scheduled monitoring worker |
-| `MONITORING_POLL_INTERVAL_MILLISECONDS` | `5000` | Delay between due-service claim batches |
-| `MONITORING_BATCH_SIZE` | `10` | Maximum services claimed per scheduler pass |
-| `MONITORING_CLAIM_LEASE_SECONDS` | `120` | Time before an unfinished claim can be recovered |
-| `LIVE_EVENT_HEARTBEAT_MILLISECONDS` | `15000` | Interval between SSE keep-alive comments |
-
-The setup script creates an ignored `.env` and independently generates a
-256-bit JWT key and random local database password.
-Production secrets must come from a managed secret store, never committed files.
-Production must set `REFRESH_COOKIE_SECURE=true` and
-`MONITORING_ALLOW_PRIVATE_TARGETS=false`. Only enable private targets
-temporarily when testing services on a controlled local Docker network.
-
-## Production deployment
-
-The Phase 11 production target uses Terraform-managed AWS infrastructure and a
-protected, OIDC-authenticated GitHub Actions release workflow. Database
-migrations run as a one-off ECS task and must succeed before either application
-service is updated.
-
-See [docs/deployment.md](docs/deployment.md) for the architecture, prerequisites,
-bootstrap sequence, GitHub environment mapping, release process, monitoring,
-and recovery runbook.
-
-## Run tests
-
-Backend tests require Docker because Testcontainers starts PostgreSQL:
+Stop and delete its disposable database:
 
 ```powershell
-Set-Location -LiteralPath 'D:\Code\vibing\pulseops\backend'
-.\mvnw.cmd test
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File '.\scripts\capture-portfolio.ps1' `
+  -Stop
 ```
 
-Frontend checks:
+## Verification
+
+Run the complete local quality gate:
 
 ```powershell
-Set-Location -LiteralPath 'D:\Code\vibing\pulseops\frontend'
-npm.cmd ci
-npm.cmd run lint
-npm.cmd test
-npm.cmd run build
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File '.\scripts\verify.ps1'
 ```
 
-Run the combined verification:
+It performs:
+
+- tracked-file secret scanning;
+- 87 backend unit and PostgreSQL integration tests;
+- SpotBugs static analysis;
+- frontend dependency installation and linting;
+- 20 Vitest and React Testing Library tests;
+- TypeScript and Vite production builds; and
+- Docker Compose configuration validation.
+
+Run the isolated registration-to-resolution browser journey:
 
 ```powershell
-Set-Location -LiteralPath 'D:\Code\vibing\pulseops'
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1
-```
-
-Run the isolated browser journey. This builds a separate Compose project,
-creates disposable database state, and removes it after the run:
-
-```powershell
-Set-Location -LiteralPath 'D:\Code\vibing\pulseops'
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\e2e.ps1 -InstallBrowsers
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File '.\scripts\e2e.ps1'
 ```
 
 Run the bounded load smoke against a running backend:
 
 ```powershell
-Set-Location -LiteralPath 'D:\Code\vibing\pulseops'
-node .\scripts\load-test.mjs
+node '.\scripts\load-test.mjs'
 ```
 
-See [docs/testing.md](docs/testing.md) for failure-simulator routes, load
-settings, and the distinction between this smoke gate and capacity testing.
+The repository also contains independent backend, frontend, container,
+infrastructure, E2E, and security GitHub Actions workflows. See
+[docs/testing.md](docs/testing.md) for test boundaries and load-gate semantics.
 
-## Database design
+## Production deployment target
 
-Flyway owns all schema changes. Hibernate validates mappings but never changes
-the schema. Phase 6 adds tenant-owned incidents, comments, and an immutable
-response timeline. See
-[docs/database.md](docs/database.md).
+Terraform defines:
 
-## Security
+- a two-availability-zone VPC with public, private application, and isolated
+  database subnets;
+- private ECS Fargate frontend, backend, and Flyway tasks;
+- encrypted RDS PostgreSQL with backups and deletion protection;
+- ACM HTTPS, Route 53 DNS, ALB path routing, and HTTP redirection;
+- immutable, scan-on-push ECR repositories;
+- Secrets Manager integration and production startup guards;
+- structured CloudWatch logs, VPC flow logs, access logs, dashboard, SNS topic,
+  and alarms; and
+- a protected GitHub deployment role that accepts short-lived OIDC credentials.
 
-Registration, login, refresh, and logout are public API operations. All other
-application routes require a valid bearer JWT. Organization-scoped operations
-also require an active membership and the appropriate role. The manual checker
-rejects unsafe URL forms, disables redirects, pins validated DNS answers at
-connection time, limits time and response size, and blocks private/reserved
-targets by default. Authentication endpoints are rate limited, and tracked
-files are checked for common secret signatures in CI.
-See
-[docs/security.md](docs/security.md).
+The release workflow builds traceable images, requires a successful private
+Flyway task, and then rolls the backend and frontend with ECS stability waits.
 
-## Deployment
+No live endpoint is advertised because applying these resources requires an AWS
+account, public domain, and explicit cost approval. The complete bootstrap,
+release, monitoring, rollback, and teardown procedure is documented in
+[docs/deployment.md](docs/deployment.md).
 
-The production target uses a Vercel-hosted SPA, an ECS Fargate backend, and RDS
-PostgreSQL across private subnets. The current Docker Compose stack is intended
-for development, not production. See [docs/deployment.md](docs/deployment.md).
+## Repository map
 
-## Screenshots and demo
+```text
+pulseops/
+├── backend/                    Spring Boot modular monolith
+├── frontend/                   React and TypeScript application
+├── demo-service/               Deterministic health-check targets
+├── infrastructure/terraform/  AWS production target
+├── scripts/                    Setup, verification, E2E, load, migration,
+│                               deployment, and portfolio automation
+├── docs/                       Architecture, security, testing, operations,
+│                               screenshots, demo, and portfolio copy
+├── .github/workflows/          Independent CI and deployment workflows
+└── docker-compose.yml          Health-gated local environment
+```
 
-The deterministic local demo and browser journey are implemented. Screenshots
-and a hosted environment remain deferred until notifications and production
-deployment are complete.
+## Documentation
 
-## Known limitations
+| Topic | Document |
+|---|---|
+| Architecture and production topology | [docs/architecture.md](docs/architecture.md) |
+| Database schema and migration rules | [docs/database.md](docs/database.md) |
+| Authentication, authorization, SSRF, and threat boundaries | [docs/security.md](docs/security.md) |
+| Monitoring scheduler and status transitions | [docs/monitoring-engine.md](docs/monitoring-engine.md) |
+| Incident lifecycle | [docs/incidents.md](docs/incidents.md) |
+| Analytics definitions and assumptions | [docs/analytics.md](docs/analytics.md) |
+| SSE delivery contract | [docs/live-events.md](docs/live-events.md) |
+| Test strategy and commands | [docs/testing.md](docs/testing.md) |
+| AWS operations runbook | [docs/deployment.md](docs/deployment.md) |
+| Product screenshot gallery | [docs/screenshots.md](docs/screenshots.md) |
+| Demo narration and recording checklist | [docs/demo-video.md](docs/demo-video.md) |
+| Resume bullets and LinkedIn copy | [docs/portfolio-copy.md](docs/portfolio-copy.md) |
 
-- Invitation email delivery is not implemented; matching registered users see
+## Deliberate limitations
+
+- Email and in-app notification delivery are not implemented.
+- Password-reset and email-verification delivery are future work.
+- Invitation delivery is not emailed; matching registered users can discover
   pending invitations in the application.
-- Password reset and email verification delivery remain future work.
-- Email and in-app notifications are not implemented.
-- Incident notifications and external delivery are not implemented yet. The
-  live-event protocol reserves `NOTIFICATION_CREATED` for that phase.
-- The live-event broker is in memory and reaches clients connected to the same
-  backend instance. A shared broker or load-balancer affinity is required
-  before horizontally scaling the backend.
-- The scheduler processes a bounded batch sequentially per application
-  instance. Database claims support multiple instances, but higher-throughput
-  worker pools are deferred until measurements justify them.
-- TCP and JSON API service types are reserved for later phases; Phase 4 accepts
-  HTTP and HTTPS services only.
-- Authentication rate limits are instance-local; horizontally scaled
-  deployments require shared or edge rate limiting.
-- Uptime metrics are sampled estimates, not continuous SLA measurements. The
-  exact calculation contract is documented in [docs/analytics.md](docs/analytics.md).
-- npm currently reports a React Router advisory affecting RSC action handling.
-  PulseOps is a client-only SPA and does not use RSC or server actions; the
-  exception is tracked in [docs/security.md](docs/security.md).
+- HTTP and HTTPS monitoring are implemented; TCP and synthetic login checks are
+  future service types.
+- SSE subscribers and authentication rate limits are in memory, so the
+  production backend remains one task until those states move to shared
+  infrastructure.
+- Scheduled checks are sequential inside each bounded claimed batch. The claim
+  design supports multiple workers, but a larger worker pool should follow
+  measurement.
+- Uptime is an observation-based estimate from persisted checks, not continuous
+  SLA availability.
+- The AWS infrastructure and release pipeline are implemented and validated as
+  code but have not been applied to a public account.
 
-## Contributing
+## Contributing and license
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md). The project uses short-lived feature
-branches and Conventional Commits.
-
-## License
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branch, commit, test, and review
+expectations.
 
 PulseOps is available under the [MIT License](LICENSE).
