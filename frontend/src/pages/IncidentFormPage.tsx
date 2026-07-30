@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router'
 import { ApiError } from '../api/ApiError'
 import { WorkspaceHeader } from '../components/layout/WorkspaceHeader'
 import { useAuth } from '../features/auth/useAuth'

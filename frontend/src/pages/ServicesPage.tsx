@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { WorkspaceHeader } from '../components/layout/WorkspaceHeader'
 import { ServiceStatusBadge } from '../components/services/ServiceStatusBadge'
 import { useAuth } from '../features/auth/useAuth'

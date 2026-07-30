@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet } from 'react-router'
 import { OrganizationProvider } from './OrganizationProvider'
 import { LiveUpdatesProvider } from '../live/LiveUpdatesProvider'
 

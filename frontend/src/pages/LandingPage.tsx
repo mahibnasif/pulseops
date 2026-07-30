@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { PublicHeader } from '../components/layout/PublicHeader'
 
 export function LandingPage() {

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router'
 import { WorkspaceHeader } from '../components/layout/WorkspaceHeader'
 import { ServiceStatusBadge } from '../components/services/ServiceStatusBadge'
 import { useAuth } from '../features/auth/useAuth'

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router'
 import { useAuth } from '../../features/auth/useAuth'
 import { useOrganizations } from '../../features/organizations/useOrganizations'
 import { useLiveUpdates } from '../../features/live/useLiveUpdates'

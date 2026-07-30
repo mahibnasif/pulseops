@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes } from 'react-router'
 import { ProtectedRoute } from '../features/auth/ProtectedRoute'
 import { OrganizationRoute } from '../features/organizations/OrganizationRoute'
 import { DashboardPage } from '../pages/DashboardPage'
